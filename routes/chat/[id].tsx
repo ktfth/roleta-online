@@ -4,7 +4,9 @@ import VideoChat from "../../islands/VideoChat.tsx";
 import { h } from "preact";
 
 export default function ChatRoom(props: PageProps) {
-  const { id } = props.params;
+  const id = props.params.id;
+  const url = new URL(props.url);
+  const chatOnly = url.searchParams.get("chatOnly") === "true";
 
   return (
     <>
@@ -30,7 +32,7 @@ export default function ChatRoom(props: PageProps) {
 
         <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <div class="px-4 py-6 sm:px-0">
-            <VideoChat roomId={id} />
+            <VideoChat roomId={id} chatOnly={chatOnly} />
           </div>
         </main>
       </div>

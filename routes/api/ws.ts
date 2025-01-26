@@ -28,12 +28,13 @@ export const handler = (req: Request, _ctx: HandlerContext): Response => {
   const userName = url.searchParams.get("userName") || "Anônimo";
   const isPrivate = url.searchParams.get("isPrivate") === "true";
   const password = url.searchParams.get("password") || undefined;
+  const chatOnly = url.searchParams.get("chatOnly") === "true";
   
   let currentRoom: Room | null = null;
 
   socket.onopen = () => {
     try {
-      currentRoom = getOrCreateRoom(roomId, hasCamera, userName, isPrivate, password);
+      currentRoom = getOrCreateRoom(roomId, hasCamera, userName, isPrivate, password, false, chatOnly);
       currentRoom.users.add(socket);
       
       // Notificar outros usuários na sala
@@ -43,13 +44,14 @@ export const handler = (req: Request, _ctx: HandlerContext): Response => {
           type: "user-joined",
           userName,
           hasCamera,
+          chatOnly,
         }),
         socket
       );
-    } catch (err) {
+    } catch (err: unknown) {
       socket.send(JSON.stringify({
         type: "error",
-        message: err.message,
+        message: err instanceof Error ? err.message : "Erro desconhecido",
       }));
       socket.close();
     }
@@ -61,9 +63,9 @@ export const handler = (req: Request, _ctx: HandlerContext): Response => {
     try {
       const data = JSON.parse(e.data);
       
-      if (data.type === "start-transmitting") {
+      if (data.type === "start-transmitting" && !currentRoom.chatOnly) {
         currentRoom.isTransmitting = true;
-      } else if (data.type === "stop-transmitting") {
+      } else if (data.type === "stop-transmitting" && !currentRoom.chatOnly) {
         currentRoom.isTransmitting = false;
       }
       

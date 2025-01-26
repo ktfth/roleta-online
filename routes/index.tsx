@@ -27,9 +27,15 @@ export default function Home() {
               </div>
               <a
                 href={`/chat/${Math.random().toString(36).substring(2, 8)}`}
-                class="block w-full text-center py-3 px-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
+                class="block w-full text-center py-3 px-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition mb-2"
               >
                 Chat Aleatório
+              </a>
+              <a
+                href={`/chat/${Math.random().toString(36).substring(2, 8)}?chatOnly=true`}
+                class="block w-full text-center py-3 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+              >
+                Chat Apenas Texto
               </a>
             </div>
           </div>

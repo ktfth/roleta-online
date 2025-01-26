@@ -8,6 +8,7 @@ export interface Room {
   isPrivate: boolean;
   password?: string;
   isStreamOnly: boolean;
+  chatOnly?: boolean;
 }
 
 export const rooms = new Map<string, Room>();
@@ -18,18 +19,20 @@ export function createRoom(
   userName: string, 
   isPrivate = false, 
   password?: string,
-  isStreamOnly = false
+  isStreamOnly = false,
+  chatOnly = false
 ): Room {
   const room = {
     id,
     users: new Set<WebSocket>(),
     hasCamera,
     createdAt: Date.now(),
-    isTransmitting: hasCamera,
+    isTransmitting: hasCamera && !chatOnly,
     userName,
     isPrivate,
     password,
     isStreamOnly,
+    chatOnly,
   };
   rooms.set(id, room);
   return room;
@@ -41,7 +44,8 @@ export function getOrCreateRoom(
   userName: string, 
   isPrivate = false, 
   password?: string,
-  isStreamOnly = false
+  isStreamOnly = false,
+  chatOnly = false
 ): Room {
   const existingRoom = rooms.get(id);
   if (existingRoom) {
@@ -51,12 +55,12 @@ export function getOrCreateRoom(
     }
     return existingRoom;
   }
-  return createRoom(id, hasCamera, userName, isPrivate, password, isStreamOnly);
+  return createRoom(id, hasCamera, userName, isPrivate, password, isStreamOnly, chatOnly);
 }
 
 export function getRooms() {
   return Array.from(rooms.values())
-    .filter(room => room.hasCamera && room.isTransmitting)
+    .filter(room => (room.hasCamera && room.isTransmitting) || room.chatOnly)
     .map(room => ({
       id: room.id,
       userCount: room.users.size,
@@ -65,6 +69,7 @@ export function getRooms() {
       userName: room.userName,
       isPrivate: room.isPrivate,
       isStreamOnly: room.isStreamOnly,
+      chatOnly: room.chatOnly,
     }));
 }
 
