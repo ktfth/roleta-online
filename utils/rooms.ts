@@ -60,16 +60,14 @@ export function getOrCreateRoom(
 
 export function getRooms() {
   return Array.from(rooms.values())
-    .filter(room => (room.hasCamera && room.isTransmitting) || room.chatOnly)
+    .filter(room => !room.isPrivate)
     .map(room => ({
       id: room.id,
-      userCount: room.users.size,
-      hasCamera: room.hasCamera,
-      isTransmitting: room.isTransmitting,
-      userName: room.userName,
       isPrivate: room.isPrivate,
-      isStreamOnly: room.isStreamOnly,
-      chatOnly: room.chatOnly,
+      chatOnly: room.chatOnly || false,
+      participants: room.users.size,
+      userName: room.userName || "Anônimo",
+      isTransmitting: room.isTransmitting
     }));
 }
 

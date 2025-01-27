@@ -15,12 +15,14 @@ interface Room {
 
 export const handler: Handlers<Room[]> = {
   async GET(req, ctx) {
-    const wsProtocol = req.url.startsWith('https') ? 'wss:' : 'ws:';
     const url = new URL(req.url);
-    const wsUrl = `${wsProtocol}//${url.host}/api/ws/list`;
     
     try {
       const response = await fetch(`${url.protocol}//${url.host}/api/rooms`);
+      if (!response.ok) {
+        console.error(`Erro ao buscar salas: ${response.status} - ${response.statusText}`);
+        return ctx.render([]);
+      }
       const rooms = await response.json();
       return ctx.render(rooms);
     } catch (error) {

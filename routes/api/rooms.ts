@@ -1,4 +1,4 @@
-import { HandlerContext } from "$fresh/server.ts";
+import { Handlers } from "$fresh/server.ts";
 import { getRooms } from "../../utils/rooms.ts";
 
 interface Room {
@@ -12,17 +12,27 @@ interface Room {
 
 const rooms = new Map<string, Room>();
 
-export const handler = async (req: Request, _ctx: HandlerContext): Response => {
-  if (req.method === "GET") {
-    const activeRooms = getRooms();
-
-    return new Response(JSON.stringify(activeRooms), {
+export const handler: Handlers = {
+  GET() {
+    const rooms = getRooms();
+    return new Response(JSON.stringify(rooms), {
       headers: { 
         "Content-Type": "application/json",
         "Cache-Control": "no-cache",
-      },
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type"
+      }
+    });
+  },
+
+  OPTIONS() {
+    return new Response(null, {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type"
+      }
     });
   }
-
-  return new Response("Método não permitido", { status: 405 });
 }; 
