@@ -439,7 +439,7 @@ export default function VideoChat({ roomId, chatOnly = false }: VideoChatProps) 
         {/* Chat container */}
         <div class={`
           flex flex-col bg-white rounded-lg shadow-lg
-          ${chatOnly ? 'w-full' : ''}
+          ${chatOnly ? 'flex-1' : ''}
           ${(!chatOnly && !isStreamOnly) ? 'h-64' : 'w-80'}
         `}>
           <div class="p-4 border-b">
