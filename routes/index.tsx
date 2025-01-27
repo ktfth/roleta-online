@@ -10,8 +10,11 @@ interface Room {
   id: string;
   isPrivate: boolean;
   chatOnly: boolean;
-  participants: number;
+  isStreamOnly: boolean;
+  isTransmitting: boolean;
+  userCount: number;
   userName?: string;
+  hasCamera: boolean;
 }
 
 export const handler: Handlers<Room[]> = {
@@ -28,9 +31,33 @@ export const handler: Handlers<Room[]> = {
 };
 
 export default function Home({ data: rooms }: PageProps<Room[]>) {
+  // Função para gerar o link correto baseado no tipo da sala
+  const getRoomLink = (room: Room) => {
+    if (room.chatOnly) {
+      return `/sala/${room.id}?chatOnly=true`;
+    }
+    if (room.isStreamOnly || room.isTransmitting) {
+      // Em transmissões, hideInactive=true, em salas normais hideInactive=false
+      const hideInactive = room.isStreamOnly ? "true" : "false";
+      return `/sala/${room.id}?streamOnly=true&isSpectator=true&hideInactive=${hideInactive}`;
+    }
+    return `/sala/${room.id}`;
+  };
+
+  // Função para obter o texto do botão baseado no tipo da sala
+  const getRoomButtonText = (room: Room) => {
+    if (room.chatOnly) {
+      return "Entrar no Chat";
+    }
+    if (room.isStreamOnly || room.isTransmitting) {
+      return "Assistir Transmissão";
+    }
+    return "Entrar na Sala";
+  };
+
   // Função para selecionar uma sala aleatória disponível
   const getRandomRoom = () => {
-    const availableRooms = rooms.filter(room => !room.isPrivate && room.participants < 2);
+    const availableRooms = rooms.filter(room => !room.isPrivate && room.userCount < 2);
     if (availableRooms.length === 0) {
       return `chat/${Math.random().toString(36).substring(2, 8)}`;
     }
@@ -88,14 +115,14 @@ export default function Home({ data: rooms }: PageProps<Room[]>) {
                         <div>
                           <h3 class="font-medium">{room.userName || "Anônimo"}</h3>
                           <p class="text-sm text-gray-500">
-                            {room.chatOnly ? "Chat de texto" : "Chat com vídeo"}
+                            {room.chatOnly ? "Chat de texto" : room.isStreamOnly ? "Transmissão ao vivo" : "Chat com vídeo"}
                           </p>
                         </div>
                         <a
-                          href={`/sala/${room.id}`}
+                          href={getRoomLink(room)}
                           class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
                         >
-                          Entrar
+                          {getRoomButtonText(room)}
                         </a>
                       </div>
                     </div>

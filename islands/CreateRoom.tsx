@@ -41,7 +41,7 @@ export default function CreateRoom() {
             onChange={(e) => {
               setIsChatOnly(e.currentTarget.checked);
               if (e.currentTarget.checked) {
-                setIsStreamOnly(false);
+                setIsStreamOnly(true);
               }
             }}
             class="rounded border-gray-300"
