@@ -130,9 +130,13 @@ export default function VideoChat({ roomId, chatOnly = false }: VideoChatProps) 
 
     const initWebRTC = async () => {
       try {
-        // Configurar WebRTC
+        // Configurar WebRTC com STUN servers
         peerConnection.current = new RTCPeerConnection({
-          iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+          iceServers: [
+            { urls: "stun:stun.l.google.com:19302" },
+            { urls: "stun:stun1.l.google.com:19302" },
+            { urls: "stun:stun2.l.google.com:19302" }
+          ],
         });
 
         // Se não for modo somente chat, inicializar câmera
@@ -150,10 +154,10 @@ export default function VideoChat({ roomId, chatOnly = false }: VideoChatProps) 
               setIsTransmitting(true);
             }
 
-            // Adicionar tracks apenas se não for modo somente chat
+            // Adicionar tracks para WebRTC
             stream.getTracks().forEach((track: MediaStreamTrack) => {
-              if (peerConnection.current) {
-                peerConnection.current.addTrack(track, stream);
+              if (peerConnection.current && localStream.current) {
+                peerConnection.current.addTrack(track, localStream.current);
               }
             });
           } catch (mediaErr) {
@@ -163,18 +167,18 @@ export default function VideoChat({ roomId, chatOnly = false }: VideoChatProps) 
           }
         }
 
-        // Configurar canal de dados
+        // Configurar canal de dados para chat
         dataChannel.current = peerConnection.current.createDataChannel("chat");
         setupDataChannel();
 
-        // Configurar eventos de conexão apenas se não for modo somente chat
-        if (!chatOnly) {
-          peerConnection.current.ontrack = (event) => {
-            if (remoteVideoRef.current) {
-              remoteVideoRef.current.srcObject = event.streams[0];
-            }
-          };
-        }
+        // Configurar eventos de conexão
+        peerConnection.current.ontrack = (event) => {
+          console.log("Recebendo track remoto:", event.streams[0]);
+          if (remoteVideoRef.current && !chatOnly) {
+            remoteVideoRef.current.srcObject = event.streams[0];
+            remoteVideoRef.current.play().catch(e => console.error("Erro ao reproduzir vídeo:", e));
+          }
+        };
 
         peerConnection.current.onicecandidate = (event) => {
           if (event.candidate && webSocket.current) {
@@ -183,6 +187,10 @@ export default function VideoChat({ roomId, chatOnly = false }: VideoChatProps) 
               candidate: event.candidate,
             }));
           }
+        };
+
+        peerConnection.current.oniceconnectionstatechange = () => {
+          console.log("ICE Connection State:", peerConnection.current?.iceConnectionState);
         };
 
         // Conectar ao WebSocket
@@ -222,40 +230,58 @@ export default function VideoChat({ roomId, chatOnly = false }: VideoChatProps) 
           if (data.type === "user-joined") {
             setMessages(prev => [...prev, `${data.userName} entrou na sala`]);
             // Criar e enviar oferta quando um novo usuário entrar e não for modo somente chat
-            if (peerConnection.current && !chatOnly) {
-              const offer = await peerConnection.current.createOffer();
-              await peerConnection.current.setLocalDescription(offer);
-              webSocket.current?.send(JSON.stringify({
-                type: "offer",
-                offer,
-              }));
+            if (peerConnection.current && !chatOnly && !isStreamOnly) {
+              try {
+                const offer = await peerConnection.current.createOffer({
+                  offerToReceiveAudio: true,
+                  offerToReceiveVideo: true
+                });
+                await peerConnection.current.setLocalDescription(offer);
+                webSocket.current?.send(JSON.stringify({
+                  type: "offer",
+                  offer,
+                }));
+              } catch (err) {
+                console.error("Erro ao criar oferta:", err);
+              }
             }
           } else if (data.type === "user-left") {
             setMessages(prev => [...prev, `${data.userName} saiu da sala`]);
+            if (remoteVideoRef.current) {
+              remoteVideoRef.current.srcObject = null;
+            }
           } else if (data.type === "offer" && !chatOnly) {
             // Responder à oferta apenas se não for modo somente chat
             if (peerConnection.current) {
-              await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.offer));
-              const answer = await peerConnection.current.createAnswer();
-              await peerConnection.current.setLocalDescription(answer);
-              webSocket.current?.send(JSON.stringify({
-                type: "answer",
-                answer,
-              }));
+              try {
+                await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.offer));
+                const answer = await peerConnection.current.createAnswer();
+                await peerConnection.current.setLocalDescription(answer);
+                webSocket.current?.send(JSON.stringify({
+                  type: "answer",
+                  answer,
+                }));
+              } catch (err) {
+                console.error("Erro ao processar oferta:", err);
+              }
             }
           } else if (data.type === "answer" && !chatOnly) {
             // Processar resposta apenas se não for modo somente chat
             if (peerConnection.current) {
-              await peerConnection.current.setRemoteDescription(
-                new RTCSessionDescription(data.answer)
-              );
+              try {
+                await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.answer));
+              } catch (err) {
+                console.error("Erro ao processar resposta:", err);
+              }
             }
           } else if (data.type === "ice-candidate" && !chatOnly) {
             // Adicionar candidato ICE apenas se não for modo somente chat
             if (peerConnection.current) {
-              await peerConnection.current.addIceCandidate(
-                new RTCIceCandidate(data.candidate)
-              );
+              try {
+                await peerConnection.current.addIceCandidate(new RTCIceCandidate(data.candidate));
+              } catch (err) {
+                console.error("Erro ao adicionar ICE candidate:", err);
+              }
             }
           } else if (data.type === "chat") {
             // Adicionar mensagem ao chat
@@ -366,68 +392,102 @@ export default function VideoChat({ roomId, chatOnly = false }: VideoChatProps) 
   }
 
   return (
-    <div class={`p-4 ${isStreamOnly ? "flex gap-4" : ""}`}>
-      {!chatOnly && (
-        <div class={isStreamOnly ? "flex-1" : ""}>
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-semibold">Conectado como: {userName}</h2>
-            {!isSpectator && (
-              <button
-                onClick={toggleTransmission}
-                class={`px-4 py-2 rounded ${
-                  isTransmitting
-                    ? "bg-red-500 hover:bg-red-600 text-white"
-                    : "bg-green-500 hover:bg-green-600 text-white"
-                }`}
-              >
-                {isTransmitting ? "Parar Transmissão" : "Iniciar Transmissão"}
-              </button>
+    <div class="flex flex-col h-screen">
+      <div class={`flex-1 ${(!chatOnly && !isStreamOnly) ? 'flex flex-col' : 'flex flex-row'} p-4 gap-4`}>
+        {/* Container principal dos vídeos */}
+        <div class={`
+          ${!chatOnly ? 'flex' : 'hidden'}
+          ${(!chatOnly && !isStreamOnly) ? 'flex-1 flex-row' : 'flex-1'}
+          gap-4 h-full
+        `}>
+          {/* Vídeo local */}
+          <div class={`
+            relative flex-1
+            ${(!chatOnly && !isStreamOnly) ? 'w-1/2' : 'w-full'}
+            bg-gray-900 rounded-lg overflow-hidden
+          `}>
+            <video
+              ref={localVideoRef}
+              autoPlay
+              playsInline
+              muted
+              class={`w-full h-full object-cover ${!isTransmitting && "hidden"}`}
+            />
+            {isTransmitting && (
+              <div class="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
+                Você
+              </div>
             )}
           </div>
 
-          <div class="bg-gray-800 rounded-lg p-4">
-            <h3 class="text-white mb-2">
-              {isSpectator ? "Transmissão" : "Seu vídeo"}
-              {!isConnected && <span class="text-gray-400 text-sm ml-2">(Aguardando conexão...)</span>}
-            </h3>
-            <video
-              ref={isSpectator ? remoteVideoRef : localVideoRef}
-              autoPlay
-              playsInline
-              muted={!isSpectator}
-              class="w-full aspect-video bg-black rounded"
-            />
+          {/* Vídeo remoto */}
+          {!chatOnly && !isStreamOnly && (
+            <div class="relative flex-1 w-1/2 bg-gray-900 rounded-lg overflow-hidden">
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                playsInline
+                class="w-full h-full object-cover"
+              />
+              <div class="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
+                Outro participante
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Chat container */}
+        <div class={`
+          flex flex-col bg-white rounded-lg shadow-lg
+          ${chatOnly ? 'w-full' : ''}
+          ${(!chatOnly && !isStreamOnly) ? 'h-64' : 'w-80'}
+        `}>
+          <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">Chat</h2>
+          </div>
+          <div class="flex-1 p-4 overflow-y-auto">
+            {messages.map((message, index) => (
+              <div key={index} class="mb-2 p-2 rounded bg-gray-50">
+                {message}
+              </div>
+            ))}
+          </div>
+          <div class="p-4 border-t">
+            <div class="flex gap-2">
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.currentTarget.value)}
+                onKeyPress={(e) => e.key === "Enter" && sendMessage()}
+                placeholder="Digite sua mensagem..."
+                class="flex-1 px-3 py-2 border rounded"
+              />
+              <button
+                onClick={sendMessage}
+                class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Enviar
+              </button>
+            </div>
           </div>
         </div>
-      )}
+      </div>
 
-      <div class={`${chatOnly ? "w-full" : isStreamOnly ? "w-80" : "mt-4"} bg-white rounded-lg shadow p-4`}>
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-lg font-semibold">Chat</h3>
-          <span class="text-sm text-gray-500">Conectado como: {userName}</span>
-        </div>
-        <div class={`${chatOnly ? "h-[calc(100vh-16rem)]" : isStreamOnly ? "h-[calc(100vh-12rem)]" : "h-48"} bg-gray-50 rounded mb-4 p-2 overflow-y-auto`}>
-          {messages.map((msg, index) => (
-            <div key={index} class="mb-2">
-              {msg}
-            </div>
-          ))}
-        </div>
-        <div class="flex gap-2">
-          <input
-            type="text"
-            value={message}
-            onInput={(e) => setMessage((e.target as HTMLInputElement).value)}
-            onKeyPress={(e) => e.key === "Enter" && sendMessage()}
-            class="flex-1 px-3 py-2 border rounded"
-            placeholder="Digite sua mensagem..."
-          />
-          <button
-            onClick={sendMessage}
-            class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Enviar
-          </button>
+      {/* Controles */}
+      <div class="p-4 bg-gray-100 border-t">
+        <div class="flex justify-center gap-4">
+          {!chatOnly && (
+            <button
+              onClick={toggleTransmission}
+              class={`px-6 py-2 rounded-lg font-medium ${
+                isTransmitting
+                  ? "bg-red-500 hover:bg-red-600"
+                  : "bg-green-500 hover:bg-green-600"
+              } text-white transition-colors`}
+            >
+              {isTransmitting ? "Parar Transmissão" : "Iniciar Transmissão"}
+            </button>
+          )}
         </div>
       </div>
     </div>
