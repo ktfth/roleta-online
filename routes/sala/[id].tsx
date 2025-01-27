@@ -37,6 +37,13 @@ export default function Sala({ data }: PageProps<Data>) {
         <title>{data.chatOnly ? "Chat" : "Sala"} - Roleta Online</title>
       </Head>
       <div class="min-h-screen bg-gray-100">
+        <nav class="bg-white shadow-md p-4">
+          <div class="container mx-auto">
+            <a href="/" class="text-gray-800 hover:text-gray-600 font-medium">
+              ← Voltar para a página inicial
+            </a>
+          </div>
+        </nav>
         <VideoChat
           roomId={data.id}
           chatOnly={data.chatOnly}

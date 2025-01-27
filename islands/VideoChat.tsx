@@ -5,18 +5,21 @@ import { h } from "preact";
 interface VideoChatProps {
   roomId: string;
   chatOnly?: boolean;
+  userName?: string;
+  isPrivate: boolean;
+  password?: string;
 }
 
-export default function VideoChat({ roomId, chatOnly = false }: VideoChatProps) {
+export default function VideoChat({ roomId, chatOnly = false, userName = "Anônimo", isPrivate, password }: VideoChatProps) {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [hasCamera, setHasCamera] = useState(false);
   const [isTransmitting, setIsTransmitting] = useState(false);
-  const [userName, setUserName] = useState("Anônimo");
+  const [localUserName, setUserName] = useState(userName);
   const [error, setError] = useState<string | null>(null);
-  const [isPrivate, setIsPrivate] = useState(false);
-  const [password, setPassword] = useState<string | undefined>();
+  const [localIsPrivate, setIsPrivate] = useState(isPrivate);
+  const [localPassword, setPassword] = useState<string | undefined>(password);
   const [isCheckingRoom, setIsCheckingRoom] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
   const [isStreamOnly, setIsStreamOnly] = useState(false);
