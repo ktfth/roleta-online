@@ -20,7 +20,7 @@ export const handler: Handlers<Room[]> = {
     const wsUrl = `${wsProtocol}//${url.host}/api/ws/list`;
     
     try {
-      const response = await fetch(`http://localhost:8000/api/rooms`);
+      const response = await fetch(`${url.protocol}//${url.host}/api/rooms`);
       const rooms = await response.json();
       return ctx.render(rooms);
     } catch (error) {
