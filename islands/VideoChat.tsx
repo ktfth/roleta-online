@@ -186,7 +186,8 @@ export default function VideoChat({ roomId, chatOnly = false }: VideoChatProps) 
         };
 
         // Conectar ao WebSocket
-        const wsUrl = new URL(`ws://${window.location.host}/api/ws`);
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = new URL(`${wsProtocol}//${window.location.host}/api/ws`);
         wsUrl.searchParams.set("roomId", roomId);
         wsUrl.searchParams.set("hasCamera", String(!chatOnly));
         wsUrl.searchParams.set("userName", userName);
