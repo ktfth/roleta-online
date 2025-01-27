@@ -16,14 +16,19 @@ interface Room {
 export const handler: Handlers<Room[]> = {
   async GET(req, ctx) {
     const url = new URL(req.url);
+    const baseUrl = Deno.env.get("DENO_DEPLOYMENT_ID") 
+      ? "https://roleta-online.deno.dev"
+      : `${url.protocol}//${url.host}`;
     
     try {
-      const response = await fetch(`${url.protocol}//${url.host}/api/rooms`);
+      console.log("Buscando salas em:", `${baseUrl}/api/rooms`);
+      const response = await fetch(`${baseUrl}/api/rooms`);
       if (!response.ok) {
         console.error(`Erro ao buscar salas: ${response.status} - ${response.statusText}`);
         return ctx.render([]);
       }
       const rooms = await response.json();
+      console.log("Salas encontradas:", rooms);
       return ctx.render(rooms);
     } catch (error) {
       console.error("Erro ao buscar salas:", error);
