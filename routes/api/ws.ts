@@ -29,12 +29,13 @@ export const handler = (req: Request, _ctx: HandlerContext): Response => {
   const isPrivate = url.searchParams.get("isPrivate") === "true";
   const password = url.searchParams.get("password") || undefined;
   const chatOnly = url.searchParams.get("chatOnly") === "true";
+  const isStreamOnly = url.searchParams.get("streamOnly") === "true";
   
   let currentRoom: Room | null = null;
 
   socket.onopen = () => {
     try {
-      currentRoom = getOrCreateRoom(roomId, hasCamera, userName, isPrivate, password, false, chatOnly);
+      currentRoom = getOrCreateRoom(roomId, hasCamera, userName, isPrivate, password, isStreamOnly, chatOnly);
       currentRoom.users.add(socket);
       
       // Notificar outros usuários na sala

@@ -24,6 +24,7 @@ export default function VideoChat({ roomId, chatOnly = false, userName = "Anôni
   const [retryCount, setRetryCount] = useState(0);
   const [isStreamOnly, setIsStreamOnly] = useState(false);
   const [isSpectator, setIsSpectator] = useState(false);
+  const [hideInactive, setHideInactive] = useState(false);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -44,6 +45,9 @@ export default function VideoChat({ roomId, chatOnly = false, userName = "Anôni
         const isCreator = params.get("creator") === "true";
         const isPrivateParam = params.get("private") === "true";
         const isStreamOnlyParam = params.get("streamOnly") === "true";
+        const hideInactiveParam = params.get("hideInactive") === "true";
+
+        setHideInactive(hideInactiveParam);
 
         // Se somos o criador, não precisamos verificar a sala ainda
         if (isCreator) {
@@ -145,34 +149,41 @@ export default function VideoChat({ roomId, chatOnly = false, userName = "Anôni
         // Se não for modo somente chat, inicializar câmera
         if (!chatOnly) {
           try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-              video: true,
-              audio: true,
-            });
+            // Em modo normal ou quando é o transmissor, inicializa a câmera
+            if (!isStreamOnly || !isSpectator) {
+              const stream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: true,
+              });
 
-            localStream.current = stream;
-            if (localVideoRef.current) {
-              localVideoRef.current.srcObject = stream;
-              setHasCamera(true);
-              setIsTransmitting(true);
-            }
-
-            // Adicionar tracks para WebRTC
-            stream.getTracks().forEach((track: MediaStreamTrack) => {
-              if (peerConnection.current && localStream.current) {
-                peerConnection.current.addTrack(track, localStream.current);
+              localStream.current = stream;
+              if (localVideoRef.current) {
+                localVideoRef.current.srcObject = stream;
+                setHasCamera(true);
+                setIsTransmitting(true);
               }
-            });
+
+              // Adicionar tracks para WebRTC
+              stream.getTracks().forEach((track: MediaStreamTrack) => {
+                if (peerConnection.current && localStream.current) {
+                  peerConnection.current.addTrack(track, localStream.current);
+                }
+              });
+            }
           } catch (mediaErr) {
             console.error("Erro ao acessar mídia:", mediaErr);
-            setError("Erro ao acessar câmera e microfone. Por favor, permita o acesso.");
-            return;
+            if (!isStreamOnly || !isSpectator) {
+              setError("Erro ao acessar câmera e microfone. Por favor, permita o acesso.");
+              return;
+            }
           }
         }
 
         // Configurar canal de dados para chat
-        dataChannel.current = peerConnection.current.createDataChannel("chat");
-        setupDataChannel();
+        if (!isStreamOnly || !isSpectator) {
+          dataChannel.current = peerConnection.current.createDataChannel("chat");
+          setupDataChannel();
+        }
 
         // Configurar eventos de conexão
         peerConnection.current.ontrack = (event) => {
@@ -233,7 +244,7 @@ export default function VideoChat({ roomId, chatOnly = false, userName = "Anôni
           if (data.type === "user-joined") {
             setMessages(prev => [...prev, `${data.userName} entrou na sala`]);
             // Criar e enviar oferta quando um novo usuário entrar e não for modo somente chat
-            if (peerConnection.current && !chatOnly && !isStreamOnly) {
+            if (peerConnection.current && !chatOnly && !isSpectator) {
               try {
                 const offer = await peerConnection.current.createOffer({
                   offerToReceiveAudio: true,
@@ -258,7 +269,10 @@ export default function VideoChat({ roomId, chatOnly = false, userName = "Anôni
             if (peerConnection.current) {
               try {
                 await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.offer));
-                const answer = await peerConnection.current.createAnswer();
+                const answer = await peerConnection.current.createAnswer({
+                  offerToReceiveAudio: true,
+                  offerToReceiveVideo: true
+                });
                 await peerConnection.current.setLocalDescription(answer);
                 webSocket.current?.send(JSON.stringify({
                   type: "answer",
@@ -403,29 +417,27 @@ export default function VideoChat({ roomId, chatOnly = false, userName = "Anôni
           ${(!chatOnly && !isStreamOnly) ? 'flex-1 flex-row' : 'flex-1'}
           gap-4 h-full
         `}>
-          {/* Vídeo local */}
-          <div class={`
-            relative flex-1
-            ${(!chatOnly && !isStreamOnly) ? 'w-1/2' : 'w-full'}
-            bg-gray-900 rounded-lg overflow-hidden
-          `}>
-            <video
-              ref={localVideoRef}
-              autoPlay
-              playsInline
-              muted
-              class={`w-full h-full object-cover ${!isTransmitting && "hidden"}`}
-            />
-            {isTransmitting && (
-              <div class="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
-                Você
-              </div>
-            )}
-          </div>
+          {/* Vídeo local - mostrado em modo normal ou quando é transmissor */}
+          {(!isStreamOnly || !isSpectator) && (!hideInactive || !isSpectator) && (
+            <div class={`relative flex-1 ${(isStreamOnly || hideInactive) ? 'w-full' : 'w-1/2'} bg-gray-900 rounded-lg overflow-hidden`}>
+              <video
+                ref={localVideoRef}
+                autoPlay
+                playsInline
+                muted
+                class={`w-full h-full object-cover ${!isTransmitting && "hidden"}`}
+              />
+              {isTransmitting && (
+                <div class="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
+                  Você
+                </div>
+              )}
+            </div>
+          )}
 
-          {/* Vídeo remoto */}
-          {!chatOnly && !isStreamOnly && (
-            <div class="relative flex-1 w-1/2 bg-gray-900 rounded-lg overflow-hidden">
+          {/* Vídeo remoto - mostrado em modo normal ou quando é espectador */}
+          {(!isStreamOnly || isSpectator) && (!hideInactive || isSpectator) && (
+            <div class={`relative flex-1 ${(isStreamOnly || hideInactive) ? 'w-full' : 'w-1/2'} bg-gray-900 rounded-lg overflow-hidden`}>
               <video
                 ref={remoteVideoRef}
                 autoPlay
@@ -433,7 +445,7 @@ export default function VideoChat({ roomId, chatOnly = false, userName = "Anôni
                 class="w-full h-full object-cover"
               />
               <div class="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
-                Outro participante
+                {isStreamOnly ? 'Transmissor' : 'Outro participante'}
               </div>
             </div>
           )}

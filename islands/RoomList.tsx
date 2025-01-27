@@ -10,6 +10,7 @@ interface Room {
   userName: string;
   isPrivate: boolean;
   chatOnly?: boolean;
+  isStreamOnly: boolean;
 }
 
 export default function RoomList() {
@@ -25,7 +26,11 @@ export default function RoomList() {
           throw new Error("Erro ao buscar salas");
         }
         const rooms = await response.json();
-        setActiveRooms(rooms);
+        const updatedRooms = rooms.map((room: Room) => ({
+          ...room,
+          isStreamOnly: room.isTransmitting || new URLSearchParams(window.location.search).get("streamOnly") === "true"
+        }));
+        setActiveRooms(updatedRooms);
         setError(null);
       } catch (err) {
         console.error("Erro ao buscar salas:", err);
@@ -73,24 +78,18 @@ export default function RoomList() {
               <div>
                 <div class="flex items-center gap-2 mb-2">
                   <h3 class="font-semibold text-lg">{room.userName}</h3>
-                  {!room.chatOnly && (
+                  {(room.isStreamOnly || room.isTransmitting) && (
                     <span class="inline-flex items-center px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full animate-pulse">
                       AO VIVO
                     </span>
                   )}
                   {room.chatOnly && (
                     <span class="inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clip-rule="evenodd" />
-                      </svg>
                       APENAS CHAT
                     </span>
                   )}
                   {room.isPrivate && (
                     <span class="inline-flex items-center px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
-                      </svg>
                       PRIVADA
                     </span>
                   )}
@@ -105,22 +104,19 @@ export default function RoomList() {
                 </div>
               </div>
               <div class="flex items-center gap-2">
-                <a
-                  href={`/chat/${room.id}${room.chatOnly ? "?chatOnly=true" : ""}`}
+                <a 
+                  href={`/sala/${room.id}${
+                    room.chatOnly 
+                      ? "?chatOnly=true" 
+                      : (room.isStreamOnly || room.isTransmitting)
+                        ? "?streamOnly=true&hideInactive=true&isSpectator=true" 
+                        : ""
+                  }`}
                   class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition flex items-center gap-2"
                 >
-                  <span>{room.isPrivate ? "Entrar com Senha" : room.chatOnly ? "Entrar no Chat" : "Assistir"}</span>
-                  {!room.chatOnly && (
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                      <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
-                    </svg>
-                  )}
-                  {room.chatOnly && (
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clip-rule="evenodd" />
-                    </svg>
-                  )}
+                  <span>
+                    {room.chatOnly ? "Entrar no Chat" : (room.isStreamOnly || room.isTransmitting) ? "Assistir Transmissão" : "Entrar na Sala"}
+                  </span>
                 </a>
               </div>
             </div>
@@ -137,17 +133,24 @@ export default function RoomList() {
           </p>
           <div class="space-y-2">
             <a
-              href={`/chat/${crypto.randomUUID().substring(0, 8)}`}
+              href={`/chat/${crypto.randomUUID().substring(0, 8)}?creator=true`}
               class="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
             >
               Criar Nova Sala
             </a>
             <br />
             <a
-              href={`/chat/${crypto.randomUUID().substring(0, 8)}?chatOnly=true`}
+              href={`/chat/${crypto.randomUUID().substring(0, 8)}?chatOnly=true&creator=true`}
               class="inline-flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
             >
               Criar Sala de Chat
+            </a>
+            <br />
+            <a
+              href={`/chat/${crypto.randomUUID().substring(0, 8)}?streamOnly=true&creator=true`}
+              class="inline-flex items-center px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+            >
+              Criar Transmissão
             </a>
           </div>
         </div>

@@ -65,8 +65,10 @@ export function getRooms() {
       id: room.id,
       isPrivate: room.isPrivate,
       chatOnly: room.chatOnly || false,
-      participants: room.users.size,
+      isStreamOnly: room.isStreamOnly || false,
+      userCount: room.users.size,
       userName: room.userName || "Anônimo",
+      hasCamera: room.hasCamera,
       isTransmitting: room.isTransmitting
     }));
 }
