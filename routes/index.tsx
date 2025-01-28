@@ -21,7 +21,6 @@ export const handler: Handlers<Room[]> = {
   async GET(_req, ctx) {
     try {
       const rooms = getRooms();
-      console.log("Salas encontradas:", rooms);
       return ctx.render(rooms);
     } catch (error) {
       console.error("Erro ao buscar salas:", error);

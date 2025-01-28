@@ -35,7 +35,7 @@ export const handler = (req: Request, _ctx: HandlerContext): Response => {
 
   socket.onopen = () => {
     try {
-      currentRoom = getOrCreateRoom(roomId, hasCamera, userName, isPrivate, password, isStreamOnly, chatOnly);
+      currentRoom = getOrCreateRoom(roomId, hasCamera, userName, socket, isPrivate, password, isStreamOnly, chatOnly);
       currentRoom.users.add(socket);
       
       // Notificar outros usuários na sala
@@ -80,7 +80,19 @@ export const handler = (req: Request, _ctx: HandlerContext): Response => {
   socket.onclose = () => {
     if (currentRoom) {
       currentRoom.users.delete(socket);
-      if (currentRoom.users.size === 0) {
+      
+      // Se o criador saiu, notificar todos e remover a sala
+      if (socket === currentRoom.creatorSocket) {
+        broadcastToRoom(
+          currentRoom,
+          JSON.stringify({ 
+            type: "creator-left",
+            message: "O criador da sala saiu. A sala será encerrada.",
+          })
+        );
+        rooms.delete(currentRoom.id);
+      } else if (currentRoom.users.size === 0) {
+        // Se não há mais usuários, remover a sala
         currentRoom.isTransmitting = false;
         rooms.delete(currentRoom.id);
       } else {

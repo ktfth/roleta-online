@@ -1,5 +1,6 @@
 import { Handlers, PageProps } from "$fresh/server.ts";
 
+import BackButton from "../../islands/BackButton.tsx";
 import { Head } from "$fresh/runtime.ts";
 import VideoChat from "../../islands/VideoChat.tsx";
 
@@ -42,9 +43,7 @@ export default function Sala({ data }: PageProps<Data>) {
       <div class="min-h-screen bg-gray-100">
         <nav class="bg-white shadow-md p-4">
           <div class="container mx-auto">
-            <a href="/" class="text-gray-800 hover:text-gray-600 font-medium">
-              ← Voltar para a página inicial
-            </a>
+            <BackButton />
           </div>
         </nav>
         <VideoChat

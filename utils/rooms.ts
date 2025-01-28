@@ -9,6 +9,7 @@ export interface Room {
   password?: string;
   isStreamOnly: boolean;
   chatOnly?: boolean;
+  creatorSocket?: WebSocket;
 }
 
 export const rooms = new Map<string, Room>();
@@ -17,6 +18,7 @@ export function createRoom(
   id: string, 
   hasCamera: boolean, 
   userName: string, 
+  creatorSocket: WebSocket,
   isPrivate = false, 
   password?: string,
   isStreamOnly = false,
@@ -33,6 +35,7 @@ export function createRoom(
     password,
     isStreamOnly,
     chatOnly,
+    creatorSocket,
   };
   rooms.set(id, room);
   return room;
@@ -42,6 +45,7 @@ export function getOrCreateRoom(
   id: string, 
   hasCamera: boolean, 
   userName: string, 
+  socket: WebSocket,
   isPrivate = false, 
   password?: string,
   isStreamOnly = false,
@@ -55,7 +59,7 @@ export function getOrCreateRoom(
     }
     return existingRoom;
   }
-  return createRoom(id, hasCamera, userName, isPrivate, password, isStreamOnly, chatOnly);
+  return createRoom(id, hasCamera, userName, socket, isPrivate, password, isStreamOnly, chatOnly);
 }
 
 export function getRooms() {

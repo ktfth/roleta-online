@@ -17,6 +17,7 @@ import * as $greet_name_ from "./routes/greet/[name].tsx";
 import * as $index from "./routes/index.tsx";
 import * as $sala_id_ from "./routes/sala/[id].tsx";
 import * as $sala_nova from "./routes/sala/nova.tsx";
+import * as $BackButton from "./islands/BackButton.tsx";
 import * as $Counter from "./islands/Counter.tsx";
 import * as $CreateRoom from "./islands/CreateRoom.tsx";
 import * as $RoomList from "./islands/RoomList.tsx";
@@ -43,6 +44,7 @@ const manifest = {
     "./routes/sala/nova.tsx": $sala_nova,
   },
   islands: {
+    "./islands/BackButton.tsx": $BackButton,
     "./islands/Counter.tsx": $Counter,
     "./islands/CreateRoom.tsx": $CreateRoom,
     "./islands/RoomList.tsx": $RoomList,

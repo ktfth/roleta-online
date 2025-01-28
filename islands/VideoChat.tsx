@@ -243,6 +243,17 @@ export default function VideoChat({ roomId, chatOnly = false, userName = "Anôni
             return;
           }
 
+          if (data.type === "creator-left") {
+            setError(data.message);
+            stopTransmission();
+            webSocket.current?.close();
+            // Redirecionar para a página inicial após um breve delay
+            setTimeout(() => {
+              window.location.href = "/";
+            }, 2000);
+            return;
+          }
+
           if (data.type === "user-joined") {
             setMessages(prev => [...prev, `${data.userName} entrou na sala`]);
             // Criar e enviar oferta quando um novo usuário entrar e não for modo somente chat
@@ -354,14 +365,22 @@ export default function VideoChat({ roomId, chatOnly = false, userName = "Anôni
   };
 
   const stopTransmission = () => {
-    if (!chatOnly && localStream.current) {
-      localStream.current.getTracks().forEach(track => {
-        track.stop();
-      });
+    setIsTransmitting(false);
+    if (localStream.current) {
+      localStream.current.getTracks().forEach(track => track.stop());
       localStream.current = null;
     }
-    if (!chatOnly && localVideoRef.current) {
-      localVideoRef.current.srcObject = null;
+    if (peerConnection.current) {
+      peerConnection.current.close();
+      peerConnection.current = null;
+    }
+    if (dataChannel.current) {
+      dataChannel.current.close();
+      dataChannel.current = null;
+    }
+    if (webSocket.current) {
+      webSocket.current.close();
+      webSocket.current = null;
     }
   };
 
@@ -398,6 +417,22 @@ export default function VideoChat({ roomId, chatOnly = false, userName = "Anôni
       }
     }
   };
+
+  // Adicionar evento beforeunload para limpar recursos quando o navegador for fechado
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleBeforeUnload = () => {
+      stopTransmission();
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      stopTransmission();
+    };
+  }, []);
 
   if (error) {
     return (
