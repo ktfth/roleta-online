@@ -37,7 +37,7 @@ export default function Home({ data: rooms }: PageProps<Room[]>) {
     }
     // Se é uma transmissão (isStreamOnly) ou está transmitindo (isTransmitting)
     const params = new URLSearchParams({
-      streamOnly: "true",
+      streamOnly: room.isStreamOnly ? "true" : "false",
       isSpectator: "true",
       // hideInactive é true quando é uma transmissão (isStreamOnly) ou quando está transmitindo (isTransmitting)
       hideInactive: (room.isStreamOnly).toString()

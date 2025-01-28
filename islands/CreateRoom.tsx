@@ -9,7 +9,7 @@ export default function CreateRoom() {
 
   const createRoom = () => {
     const roomId = crypto.randomUUID().substring(0, 8);
-    const url = new URL(`/chat/${roomId}`, window.location.href);
+    const url = new URL(`/sala/${roomId}`, window.location.href);
     
     // Adicionar parâmetros para identificar que somos o criador
     url.searchParams.set("creator", "true");
@@ -19,6 +19,7 @@ export default function CreateRoom() {
       url.searchParams.set("password", password);
     }
 
+    // Sempre passar o valor de streamOnly, mesmo em salas normais
     url.searchParams.set("streamOnly", String(isStreamOnly));
 
     if (isChatOnly) {
@@ -30,14 +31,13 @@ export default function CreateRoom() {
 
   return (
     <div class="space-y-4">
-      <div class="space-y-3">
+      <div class="space-y-4">
         <div class="flex items-center gap-2">
           <input
             type="checkbox"
             id="isChatOnly"
             checked={isChatOnly}
             onChange={(e) => {
-              console.log(e.currentTarget.checked);
               setIsChatOnly(e.currentTarget.checked);
               setIsStreamOnly(false);
             }}
@@ -67,9 +67,7 @@ export default function CreateRoom() {
             id="isStreamOnly"
             checked={isStreamOnly}
             disabled={isChatOnly}
-            onChange={(e) => {
-              setIsStreamOnly(e.currentTarget.checked)
-            }}
+            onChange={(e) => setIsStreamOnly(e.currentTarget.checked)}
             class="rounded border-gray-300"
           />
           <label htmlFor="isStreamOnly" class={`text-sm ${isChatOnly ? "text-gray-400" : "text-gray-700"}`}>
