@@ -6,7 +6,6 @@ Um aplicativo de chat e vídeo aleatório construído com Deno Fresh.
 
 - Chat em tempo real
 - Transmissão de vídeo
-- Salas privadas com senha
 - Modo apenas chat (sem vídeo)
 - Modo transmissão (apenas espectadores)
 
@@ -36,7 +35,6 @@ deno task test
 
 - `tests/rooms.test.ts`: Testa as funções de gerenciamento de salas
   - Criação de salas (normais e apenas chat)
-  - Salas privadas com senha
   - Listagem de salas
   - Contagem de usuários
   - Remoção de salas
@@ -44,7 +42,6 @@ deno task test
 - `tests/ws.test.ts`: Testa a comunicação WebSocket
   - Conexão em salas normais
   - Conexão em salas apenas chat
-  - Conexão em salas privadas
   - Transmissão de mensagens
   - Tratamento de erros
 

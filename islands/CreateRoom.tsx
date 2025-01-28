@@ -48,7 +48,7 @@ export default function CreateRoom() {
           </label>
         </div>
 
-        <div class="flex items-center gap-2">
+        {/* <div class="flex items-center gap-2">
           <input
             type="checkbox"
             id="isPrivate"
@@ -59,7 +59,7 @@ export default function CreateRoom() {
           <label htmlFor="isPrivate" class="text-sm text-gray-700">
             Criar sala privada
           </label>
-        </div>
+        </div> */}
 
         <div class="flex items-center gap-2">
           <input
