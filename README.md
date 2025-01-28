@@ -2,6 +2,8 @@
 
 Um aplicativo de chat e vídeo aleatório construído com Deno Fresh.
 
+https://roleta-online.aldeia-viva.com.br
+
 ## Funcionalidades
 
 - Chat em tempo real

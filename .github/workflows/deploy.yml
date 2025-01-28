@@ -6,8 +6,8 @@ on:
     branches: main
 
 jobs:
-  deploy:
-    name: Deploy
+  test-and-deploy:
+    name: Test and Deploy
     runs-on: ubuntu-latest
 
     permissions:
@@ -22,6 +22,9 @@ jobs:
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+
+      - name: Run tests
+        run: "deno task test"
 
       - name: Build step
         run: "deno task build"

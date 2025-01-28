@@ -26,8 +26,6 @@ export const handler = (req: Request, _ctx: HandlerContext): Response => {
   const roomId = url.searchParams.get("roomId") || "";
   const hasCamera = url.searchParams.get("hasCamera") === "true";
   const userName = url.searchParams.get("userName") || "Anônimo";
-  const isPrivate = url.searchParams.get("isPrivate") === "true";
-  const password = url.searchParams.get("password") || undefined;
   const chatOnly = url.searchParams.get("chatOnly") === "true";
   const isStreamOnly = url.searchParams.get("streamOnly") === "true";
   
@@ -35,7 +33,7 @@ export const handler = (req: Request, _ctx: HandlerContext): Response => {
 
   socket.onopen = () => {
     try {
-      currentRoom = getOrCreateRoom(roomId, hasCamera, userName, socket, isPrivate, password, isStreamOnly, chatOnly);
+      currentRoom = getOrCreateRoom(roomId, hasCamera, userName, socket, isStreamOnly, chatOnly);
       currentRoom.users.add(socket);
       
       // Notificar outros usuários na sala

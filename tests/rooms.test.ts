@@ -11,13 +11,13 @@ class MockWebSocket {
 Deno.test("Criação de sala", () => {
   // Limpar salas antes do teste
   rooms.clear();
+  const mockSocket = new MockWebSocket() as unknown as WebSocket;
 
   const room = createRoom(
     "test-123",
     true,
     "Teste",
-    false,
-    undefined,
+    mockSocket,
     false,
     false
   );
@@ -25,21 +25,21 @@ Deno.test("Criação de sala", () => {
   assertEquals(room.id, "test-123");
   assertEquals(room.userName, "Teste");
   assertEquals(room.hasCamera, true);
-  assertEquals(room.isPrivate, false);
   assertEquals(room.isStreamOnly, false);
   assertEquals(room.chatOnly, false);
   assertEquals(room.isTransmitting, true);
+  assertEquals(room.creatorSocket, mockSocket);
 });
 
 Deno.test("Criação de sala apenas chat", () => {
   rooms.clear();
+  const mockSocket = new MockWebSocket() as unknown as WebSocket;
 
   const room = createRoom(
     "chat-123",
     false,
     "Chat Teste",
-    false,
-    undefined,
+    mockSocket,
     false,
     true
   );
@@ -47,22 +47,23 @@ Deno.test("Criação de sala apenas chat", () => {
   assertEquals(room.id, "chat-123");
   assertEquals(room.userName, "Chat Teste");
   assertEquals(room.hasCamera, false);
-  assertEquals(room.isPrivate, false);
   assertEquals(room.isStreamOnly, false);
   assertEquals(room.chatOnly, true);
   assertEquals(room.isTransmitting, false);
+  assertEquals(room.creatorSocket, mockSocket);
 });
 
 Deno.test("Obter ou criar sala existente", () => {
   rooms.clear();
+  const mockSocket = new MockWebSocket() as unknown as WebSocket;
+  const mockSocket2 = new MockWebSocket() as unknown as WebSocket;
 
   // Criar sala primeiro
   const room1 = createRoom(
     "test-456",
     true,
     "Teste",
-    false,
-    undefined,
+    mockSocket,
     false,
     false
   );
@@ -72,72 +73,25 @@ Deno.test("Obter ou criar sala existente", () => {
     "test-456",
     true,
     "Outro Nome",
-    false,
-    undefined,
+    mockSocket2,
     false,
     false
   );
 
   assertEquals(room1, room2);
   assertEquals(room2.userName, "Teste"); // Deve manter o nome original
-});
-
-Deno.test("Sala privada com senha", () => {
-  rooms.clear();
-
-  const room = createRoom(
-    "private-123",
-    true,
-    "Sala Privada",
-    true,
-    "senha123",
-    false,
-    false
-  );
-
-  assertEquals(room.isPrivate, true);
-  assertEquals(room.password, "senha123");
-
-  // Tentar acessar com senha correta
-  const roomWithCorrectPass = getOrCreateRoom(
-    "private-123",
-    true,
-    "Teste",
-    true,
-    "senha123",
-    false,
-    false
-  );
-
-  assertEquals(room, roomWithCorrectPass);
-
-  // Tentar acessar com senha incorreta
-  try {
-    getOrCreateRoom(
-      "private-123",
-      true,
-      "Teste",
-      true,
-      "senha-errada",
-      false,
-      false
-    );
-    throw new Error("Deveria ter lançado erro de senha incorreta");
-  } catch (err: unknown) {
-    if (err instanceof Error) {
-      assertEquals(err.message, "Senha incorreta");
-    }
-  }
+  assertEquals(room2.creatorSocket, mockSocket); // Deve manter o criador original
 });
 
 Deno.test("Listagem de salas", () => {
   rooms.clear();
+  const mockSocket = new MockWebSocket() as unknown as WebSocket;
 
   // Criar várias salas com diferentes configurações
-  createRoom("room1", true, "Sala 1", false, undefined, false, false);
-  createRoom("room2", true, "Sala 2", false, undefined, false, false);
-  createRoom("chat1", false, "Chat 1", false, undefined, false, true);
-  createRoom("chat2", false, "Chat 2", false, undefined, false, true);
+  createRoom("room1", true, "Sala 1", mockSocket);
+  createRoom("room2", true, "Sala 2", mockSocket);
+  createRoom("chat1", false, "Chat 1", mockSocket, false, true);
+  createRoom("chat2", false, "Chat 2", mockSocket, false, true);
 
   const listedRooms = getRooms();
 
@@ -151,8 +105,9 @@ Deno.test("Listagem de salas", () => {
 
 Deno.test("Remoção de sala", () => {
   rooms.clear();
+  const mockSocket = new MockWebSocket() as unknown as WebSocket;
 
-  createRoom("to-remove", true, "Sala para Remover", false);
+  createRoom("to-remove", true, "Sala para Remover", mockSocket);
   assertEquals(rooms.has("to-remove"), true);
 
   removeRoom("to-remove");
@@ -161,8 +116,9 @@ Deno.test("Remoção de sala", () => {
 
 Deno.test("Atualização de status de transmissão", () => {
   rooms.clear();
+  const mockSocket = new MockWebSocket() as unknown as WebSocket;
 
-  createRoom("stream-test", true, "Sala de Teste", false);
+  createRoom("stream-test", true, "Sala de Teste", mockSocket);
   
   // Parar transmissão
   updateRoomTransmission("stream-test", false);
@@ -175,8 +131,9 @@ Deno.test("Atualização de status de transmissão", () => {
 
 Deno.test("Contagem de usuários", () => {
   rooms.clear();
+  const mockSocket = new MockWebSocket() as unknown as WebSocket;
 
-  const room = createRoom("users-test", true, "Sala de Teste", false);
+  const room = createRoom("users-test", true, "Sala de Teste", mockSocket);
   assertEquals(room.users.size, 0);
 
   // Adicionar usuários
