@@ -9,6 +9,7 @@ interface Data {
   userName?: string;
   isPrivate: boolean;
   password?: string;
+  streamOnly: boolean;
 }
 
 export const handler: Handlers<Data> = {
@@ -19,13 +20,15 @@ export const handler: Handlers<Data> = {
     const userName = url.searchParams.get("userName") || undefined;
     const isPrivate = url.searchParams.get("isPrivate") === "true";
     const password = url.searchParams.get("password") || undefined;
+    const streamOnly = url.searchParams.get("streamOnly") === "true";
 
     return ctx.render({
       id,
       chatOnly,
       userName,
       isPrivate,
-      password
+      password,
+      streamOnly
     });
   },
 };
@@ -50,6 +53,7 @@ export default function Sala({ data }: PageProps<Data>) {
           userName={data.userName}
           isPrivate={data.isPrivate}
           password={data.password}
+          streamOnly={data.streamOnly}
         />
       </div>
     </>

@@ -26,11 +26,7 @@ export default function RoomList() {
           throw new Error("Erro ao buscar salas");
         }
         const rooms = await response.json();
-        const updatedRooms = rooms.map((room: Room) => ({
-          ...room,
-          isStreamOnly: room.isTransmitting || new URLSearchParams(window.location.search).get("streamOnly") === "true"
-        }));
-        setActiveRooms(updatedRooms);
+        setActiveRooms(rooms);
         setError(null);
       } catch (err) {
         console.error("Erro ao buscar salas:", err);
@@ -107,15 +103,15 @@ export default function RoomList() {
                 <a 
                   href={`/sala/${room.id}${
                     room.chatOnly 
-                      ? "?chatOnly=true" 
-                      : (room.isStreamOnly || room.isTransmitting)
-                        ? "?streamOnly=true&hideInactive=true&isSpectator=true" 
-                        : ""
+                      ? "?chatOnly=true&streamOnly=false" 
+                      : room.isStreamOnly
+                        ? "?streamOnly=true&isSpectator=true" 
+                        : "?streamOnly=false"
                   }`}
                   class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition flex items-center gap-2"
                 >
                   <span>
-                    {room.chatOnly ? "Entrar no Chat" : (room.isStreamOnly || room.isTransmitting) ? "Assistir Transmissão" : "Entrar na Sala"}
+                    {room.chatOnly ? "Entrar no Chat" : room.isStreamOnly ? "Assistir Transmissão" : "Entrar na Sala"}
                   </span>
                 </a>
               </div>
@@ -133,14 +129,14 @@ export default function RoomList() {
           </p>
           <div class="space-y-2">
             <a
-              href={`/chat/${crypto.randomUUID().substring(0, 8)}?creator=true`}
+              href={`/chat/${crypto.randomUUID().substring(0, 8)}?creator=true&streamOnly=false`}
               class="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
             >
               Criar Nova Sala
             </a>
             <br />
             <a
-              href={`/chat/${crypto.randomUUID().substring(0, 8)}?chatOnly=true&creator=true`}
+              href={`/chat/${crypto.randomUUID().substring(0, 8)}?chatOnly=true&creator=true&streamOnly=false`}
               class="inline-flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
             >
               Criar Sala de Chat

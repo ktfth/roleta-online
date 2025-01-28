@@ -6,7 +6,7 @@
         "type": "node",
         "request": "launch",
         "program": "${workspaceFolder}/dev.ts",
-        "args": ["build"],
+        "args": ["start"],
         "runtimeExecutable": "deno",
         "runtimeArgs": ["run", "--inspect-brk", "-A"],
         "attachSimplePort": 9229

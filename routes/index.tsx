@@ -36,12 +36,14 @@ export default function Home({ data: rooms }: PageProps<Room[]>) {
     if (room.chatOnly) {
       return `/sala/${room.id}?chatOnly=true`;
     }
-    if (room.isStreamOnly || room.isTransmitting) {
-      // Em transmissões, hideInactive=true, em salas normais hideInactive=false
-      const hideInactive = room.isStreamOnly ? "true" : "false";
-      return `/sala/${room.id}?streamOnly=true&isSpectator=true&hideInactive=${hideInactive}`;
-    }
-    return `/sala/${room.id}`;
+    // Se é uma transmissão (isStreamOnly) ou está transmitindo (isTransmitting)
+    const params = new URLSearchParams({
+      streamOnly: "true",
+      isSpectator: "true",
+      // hideInactive é true quando é uma transmissão (isStreamOnly) ou quando está transmitindo (isTransmitting)
+      hideInactive: (room.isStreamOnly).toString()
+    });
+    return `/sala/${room.id}?${params.toString()}`;
   };
 
   // Função para obter o texto do botão baseado no tipo da sala

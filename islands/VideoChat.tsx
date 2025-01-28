@@ -8,9 +8,10 @@ interface VideoChatProps {
   userName?: string;
   isPrivate: boolean;
   password?: string;
+  streamOnly: boolean;
 }
 
-export default function VideoChat({ roomId, chatOnly = false, userName = "Anônimo", isPrivate, password }: VideoChatProps) {
+export default function VideoChat({ roomId, chatOnly = false, userName = "Anônimo", isPrivate, password, streamOnly }: VideoChatProps) {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState(false);
@@ -22,7 +23,7 @@ export default function VideoChat({ roomId, chatOnly = false, userName = "Anôni
   const [localPassword, setPassword] = useState<string | undefined>(password);
   const [isCheckingRoom, setIsCheckingRoom] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
-  const [isStreamOnly, setIsStreamOnly] = useState(false);
+  const [isStreamOnly, setIsStreamOnly] = useState(streamOnly);
   const [isSpectator, setIsSpectator] = useState(false);
   const [hideInactive, setHideInactive] = useState(false);
 
@@ -45,9 +46,9 @@ export default function VideoChat({ roomId, chatOnly = false, userName = "Anôni
         const isCreator = params.get("creator") === "true";
         const isPrivateParam = params.get("private") === "true";
         const isStreamOnlyParam = params.get("streamOnly") === "true";
-        const hideInactiveParam = params.get("hideInactive") === "true";
-
-        setHideInactive(hideInactiveParam);
+        
+        // Definir hideInactive automaticamente baseado no tipo de sala
+        setHideInactive(isStreamOnlyParam);
 
         // Se somos o criador, não precisamos verificar a sala ainda
         if (isCreator) {
@@ -214,6 +215,7 @@ export default function VideoChat({ roomId, chatOnly = false, userName = "Anôni
         wsUrl.searchParams.set("hasCamera", String(!chatOnly));
         wsUrl.searchParams.set("userName", userName);
         wsUrl.searchParams.set("isPrivate", String(isPrivate));
+        wsUrl.searchParams.set("streamOnly", String(isStreamOnly));
         if (password) {
           wsUrl.searchParams.set("password", password);
         }

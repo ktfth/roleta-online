@@ -19,7 +19,7 @@ export function createRoom(
   userName: string, 
   isPrivate = false, 
   password?: string,
-  isStreamOnly = true,
+  isStreamOnly = false,
   chatOnly = false
 ): Room {
   const room = {
@@ -44,7 +44,7 @@ export function getOrCreateRoom(
   userName: string, 
   isPrivate = false, 
   password?: string,
-  isStreamOnly = true,
+  isStreamOnly = false,
   chatOnly = false
 ): Room {
   const existingRoom = rooms.get(id);

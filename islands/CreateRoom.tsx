@@ -19,9 +19,7 @@ export default function CreateRoom() {
       url.searchParams.set("password", password);
     }
 
-    if (isStreamOnly) {
-      url.searchParams.set("streamOnly", "true");
-    }
+    url.searchParams.set("streamOnly", String(isStreamOnly));
 
     if (isChatOnly) {
       url.searchParams.set("chatOnly", "true");
@@ -39,10 +37,9 @@ export default function CreateRoom() {
             id="isChatOnly"
             checked={isChatOnly}
             onChange={(e) => {
+              console.log(e.currentTarget.checked);
               setIsChatOnly(e.currentTarget.checked);
-              if (e.currentTarget.checked) {
-                setIsStreamOnly(true);
-              }
+              setIsStreamOnly(false);
             }}
             class="rounded border-gray-300"
           />
@@ -70,7 +67,9 @@ export default function CreateRoom() {
             id="isStreamOnly"
             checked={isStreamOnly}
             disabled={isChatOnly}
-            onChange={(e) => setIsStreamOnly(e.currentTarget.checked)}
+            onChange={(e) => {
+              setIsStreamOnly(e.currentTarget.checked)
+            }}
             class="rounded border-gray-300"
           />
           <label htmlFor="isStreamOnly" class={`text-sm ${isChatOnly ? "text-gray-400" : "text-gray-700"}`}>
