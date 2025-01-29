@@ -20,6 +20,8 @@ import * as $sala_nova from "./routes/sala/nova.tsx";
 import * as $BackButton from "./islands/BackButton.tsx";
 import * as $Counter from "./islands/Counter.tsx";
 import * as $CreateRoom from "./islands/CreateRoom.tsx";
+import * as $HomePage from "./islands/HomePage.tsx";
+import * as $LanguageSwitcher from "./islands/LanguageSwitcher.tsx";
 import * as $RoomList from "./islands/RoomList.tsx";
 import * as $VideoChat from "./islands/VideoChat.js";
 import * as $VideoChat_1 from "./islands/VideoChat.tsx";
@@ -47,6 +49,8 @@ const manifest = {
     "./islands/BackButton.tsx": $BackButton,
     "./islands/Counter.tsx": $Counter,
     "./islands/CreateRoom.tsx": $CreateRoom,
+    "./islands/HomePage.tsx": $HomePage,
+    "./islands/LanguageSwitcher.tsx": $LanguageSwitcher,
     "./islands/RoomList.tsx": $RoomList,
     "./islands/VideoChat.js": $VideoChat,
     "./islands/VideoChat.tsx": $VideoChat_1,

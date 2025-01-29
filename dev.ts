@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run -A --watch=static/,routes/
+#!/usr/bin/env -S deno run -A --watch=static/,routes/ --allow-read
 
 import "$std/dotenv/load.ts";
 

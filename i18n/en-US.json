@@ -1,0 +1,61 @@
+{
+  "common": {
+    "createRoom": "Create Room",
+    "joinRoom": "Join Room",
+    "back": "Back",
+    "loading": "Loading...",
+    "error": "Error",
+    "title": "Online Roulette - Video Chat",
+    "or": "or",
+    "anonymous": "Anonymous",
+    "forkOnGithub": "Fork me on GitHub"
+  },
+  "room": {
+    "title": "Room",
+    "waiting": "Waiting for other players...",
+    "players": "Players",
+    "start": "Start Game",
+    "yourTurn": "Your turn",
+    "waitingTurn": "Waiting for your turn...",
+    "chatOnly": "Chat only (no video)",
+    "streamOnly": "Stream mode (spectators only)",
+    "passwordPlaceholder": "Enter room password",
+    "passwordHint": "Password must be at least 4 characters",
+    "private": "Private",
+    "streamMode": "Stream",
+    "chatMode": "Chat Only",
+    "enterChat": "Enter Chat",
+    "watchStream": "Watch Stream",
+    "enterRoom": "Enter Room",
+    "textChat": "Text chat",
+    "liveStream": "Live stream",
+    "videoChat": "Video chat",
+    "noActiveRooms": "No active rooms",
+    "beFirstToCreate": "Be the first to create a room!"
+  },
+  "chat": {
+    "sendMessage": "Send message",
+    "placeholder": "Type your message..."
+  },
+  "home": {
+    "startNewChat": "Start New Chat",
+    "textOnlyChat": "Text Only Chat",
+    "liveStreams": "Live Streams",
+    "howToUse": "How to Use",
+    "createStream": "Create a Stream",
+    "watchStream": "Watch a Stream",
+    "howTo": {
+      "step1": "Click on \"Create Room\"",
+      "step2": "Choose between public or private room",
+      "step3": "If private, set a password",
+      "step4": "Enter your name (optional)",
+      "step5": "Allow camera and microphone access",
+      "step6": "Share your stream link",
+      "watch1": "Choose a live stream from the list",
+      "watch2": "Enter password if it's a private room",
+      "watch3": "Or click on \"Random Chat\" for a surprise conversation",
+      "watch4": "Interact through real-time chat",
+      "watch5": "Start your own stream whenever you want"
+    }
+  }
+} 

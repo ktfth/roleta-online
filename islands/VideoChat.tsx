@@ -1,436 +1,363 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 
 import { h } from "preact";
+import { t } from "../utils/i18n.ts";
 
 interface VideoChatProps {
   roomId: string;
   chatOnly?: boolean;
   userName?: string;
-  isPrivate: boolean;
+  isPrivate?: boolean;
   password?: string;
-  streamOnly: boolean;
+  streamOnly?: boolean;
 }
 
-export default function VideoChat({ roomId, chatOnly = false, userName = "Anônimo", isPrivate, password, streamOnly }: VideoChatProps) {
-  const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<string[]>([]);
-  const [isConnected, setIsConnected] = useState(false);
-  const [hasCamera, setHasCamera] = useState(false);
-  const [isTransmitting, setIsTransmitting] = useState(false);
-  const [localUserName, setUserName] = useState(userName);
+export default function VideoChat({ roomId, chatOnly = false, userName = t("common.anonymous"), isPrivate, password, streamOnly = false }: VideoChatProps) {
   const [error, setError] = useState<string | null>(null);
-  const [localIsPrivate, setIsPrivate] = useState(isPrivate);
-  const [localPassword, setPassword] = useState<string | undefined>(password);
+  const [messages, setMessages] = useState<string[]>([]);
+  const [newMessage, setNewMessage] = useState("");
   const [isCheckingRoom, setIsCheckingRoom] = useState(true);
-  const [retryCount, setRetryCount] = useState(0);
-  const [isStreamOnly, setIsStreamOnly] = useState(streamOnly);
-  const [isSpectator, setIsSpectator] = useState(false);
-  const [hideInactive, setHideInactive] = useState(false);
+  const [isTransmitting, setIsTransmitting] = useState(false);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const peerConnection = useRef<RTCPeerConnection | null>(null);
   const dataChannel = useRef<RTCDataChannel | null>(null);
-  const webSocket = useRef<WebSocket | null>(null);
+  const ws = useRef<WebSocket | null>(null);
   const localStream = useRef<MediaStream | null>(null);
 
-  // Primeiro efeito para verificar se a sala é privada
-  useEffect(() => {
+  const checkRoom = async () => {
     if (typeof window === "undefined") return;
 
-    const checkRoom = async () => {
-      try {
-        // Primeiro, verificar se temos uma senha na URL
-        const params = new URLSearchParams(window.location.search);
-        const urlPassword = params.get("password");
-        const isCreator = params.get("creator") === "true";
-        const isPrivateParam = params.get("private") === "true";
-        const isStreamOnlyParam = params.get("streamOnly") === "true";
-        
-        // Definir hideInactive automaticamente baseado no tipo de sala
-        setHideInactive(isStreamOnlyParam);
+    try {
+      // Verificar parâmetros da URL
+      const params = new URLSearchParams(window.location.search);
+      const urlPassword = params.get("password");
+      const isCreator = params.get("creator") === "true";
+      const isPrivateParam = params.get("private") === "true";
+      const streamOnlyParam = params.get("streamOnly") === "true";
 
-        // Se somos o criador, não precisamos verificar a sala ainda
-        if (isCreator) {
-          setIsPrivate(isPrivateParam);
-          setIsStreamOnly(isStreamOnlyParam);
-          if (isPrivateParam && urlPassword) {
-            setPassword(urlPassword);
-          }
-          setIsCheckingRoom(false);
-          return;
-        }
-
-        // Se não somos o criador, verificar a sala
-        const response = await fetch(`/api/rooms/${roomId}`);
-        if (!response.ok) {
-          if (response.status === 404) {
-            setError("Sala não encontrada. Aguarde o criador iniciar a sala.");
-          } else {
-            throw new Error("Erro ao acessar a sala");
-          }
-          return;
-        }
-        
-        const room = await response.json();
-        setIsPrivate(room.isPrivate);
-        setIsStreamOnly(room.isStreamOnly);
-        setIsSpectator(true);
-
-        // Se a sala é privada e não somos o criador, precisamos da senha
-        if (room.isPrivate) {
-          let roomPassword = urlPassword;
-          
-          // Se não temos senha na URL ou a senha está incorreta, solicitar
-          if (!roomPassword || retryCount > 0) {
-            roomPassword = prompt(
-              retryCount > 0 
-                ? "Senha incorreta. Tente novamente:" 
-                : "Esta sala é privada. Digite a senha para entrar:"
-            );
-          }
-
-          if (!roomPassword) {
-            window.location.href = "/"; // Redirecionar se cancelar
-            return;
-          }
-
-          setPassword(roomPassword);
-
-          // Verificar a senha
-          const verifyResponse = await fetch(`/api/rooms/${roomId}/verify`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ password: roomPassword }),
-          });
-
-          if (!verifyResponse.ok) {
-            setRetryCount(prev => prev + 1);
-            throw new Error("Senha incorreta");
-          }
-        }
-
+      // Se for o criador, não precisa verificar a sala
+      if (isCreator) {
         setIsCheckingRoom(false);
-      } catch (err: unknown) {
-        console.error("Erro ao verificar sala:", err);
-        if (err instanceof Error && err.message === "Senha incorreta") {
-          // Tentar novamente com nova senha
-          checkRoom();
-        } else if (err instanceof Error) {
-          setError(err.message);
-          setIsCheckingRoom(false);
-        }
+        return;
       }
-    };
 
-    checkRoom();
-  }, [roomId, retryCount]);
+      // Verificar se a sala existe
+      const response = await fetch(`/api/rooms/${roomId}`);
+      if (!response.ok) {
+        setError(t("room.notFound"));
+        throw new Error(t("room.accessError"));
+      }
 
-  // Segundo efeito para inicializar WebRTC após verificação da sala
-  useEffect(() => {
-    if (typeof window === "undefined" || isCheckingRoom) return;
+      const room = await response.json();
 
-    // Solicitar nome do usuário
-    const name = prompt("Digite seu nome (opcional):", "Anônimo");
-    if (name) setUserName(name);
+      // Se a sala for privada, verificar a senha
+      if (room.isPrivate) {
+        let inputPassword = urlPassword;
+        while (!inputPassword) {
+          inputPassword = prompt(
+            t(urlPassword ? "room.wrongPassword" : "room.enterPassword")
+          );
+          if (!inputPassword) return;
+        }
 
-    const initWebRTC = async () => {
-      try {
-        // Configurar WebRTC com STUN servers
-        peerConnection.current = new RTCPeerConnection({
-          iceServers: [
-            { urls: "stun:stun.l.google.com:19302" },
-            { urls: "stun:stun1.l.google.com:19302" },
-            { urls: "stun:stun2.l.google.com:19302" }
-          ],
+        // Verificar a senha
+        const verifyResponse = await fetch(`/api/rooms/${roomId}/verify`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            password: inputPassword,
+          }),
         });
 
-        // Se não for modo somente chat, inicializar câmera
-        if (!chatOnly) {
-          try {
-            // Em modo normal ou quando é o transmissor, inicializa a câmera
-            if (!isStreamOnly || !isSpectator) {
-              const stream = await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: true,
-              });
+        if (!verifyResponse.ok) {
+          throw new Error(t("room.wrongPassword"));
+        }
+      }
 
-              localStream.current = stream;
-              if (localVideoRef.current) {
-                localVideoRef.current.srcObject = stream;
-                setHasCamera(true);
-                setIsTransmitting(true);
-              }
+      setIsCheckingRoom(false);
+    } catch (err) {
+      console.error("Erro ao verificar sala:", err);
+      if (err instanceof Error && err.message === t("room.wrongPassword")) {
+        window.location.reload();
+      } else {
+        setError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  };
 
-              // Adicionar tracks para WebRTC
-              stream.getTracks().forEach((track: MediaStreamTrack) => {
-                if (peerConnection.current && localStream.current) {
-                  peerConnection.current.addTrack(track, localStream.current);
-                }
-              });
+  const initializeWebRTC = async () => {
+    if (typeof window === "undefined" || isCheckingRoom) return;
+
+    try {
+      // Solicitar nome do usuário se não fornecido
+      if (!userName || userName === t("common.anonymous")) {
+        const name = prompt(t("common.enterName"), t("common.anonymous"));
+        if (name) userName = name;
+      }
+
+      // Configurar conexão WebRTC
+      peerConnection.current = new RTCPeerConnection({
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" },
+          { urls: "stun:stun1.l.google.com:19302" },
+          { urls: "stun:stun2.l.google.com:19302" }
+        ]
+      });
+
+      // Se não for apenas chat, configurar vídeo
+      if (!chatOnly) {
+        try {
+          localStream.current = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true
+          });
+
+          // Adicionar tracks à conexão peer
+          localStream.current.getTracks().forEach(track => {
+            if (localStream.current) {
+              peerConnection.current?.addTrack(track, localStream.current);
             }
-          } catch (mediaErr) {
-            console.error("Erro ao acessar mídia:", mediaErr);
-            if (!isStreamOnly || !isSpectator) {
-              setError("Erro ao acessar câmera e microfone. Por favor, permita o acesso.");
-              return;
-            }
+          });
+
+          // Mostrar vídeo local
+          if (localVideoRef.current) {
+            localVideoRef.current.srcObject = localStream.current;
+            await localVideoRef.current.play();
           }
+        } catch (mediaErr) {
+          console.error(t("common.camera.accessError"), mediaErr);
+          localStream.current = null;
+          setError(t("common.camera.error"));
         }
+      }
 
-        // Configurar canal de dados para chat
-        if (!isStreamOnly || !isSpectator) {
-          dataChannel.current = peerConnection.current.createDataChannel("chat");
-          setupDataChannel();
-        }
+      // Configurar canal de dados para chat
+      if (peerConnection.current) {
+        dataChannel.current = peerConnection.current.createDataChannel("chat");
+      }
 
-        // Configurar eventos de conexão
+      // Configurar handlers de eventos WebRTC
+      if (peerConnection.current) {
         peerConnection.current.ontrack = (event) => {
-          console.log("Recebendo track remoto:", event.streams[0]);
-          if (remoteVideoRef.current && !chatOnly) {
+          console.log(t("common.debug.receivingTrack"), event.streams[0]);
+          if (remoteVideoRef.current) {
             remoteVideoRef.current.srcObject = event.streams[0];
-            remoteVideoRef.current.play().catch(e => console.error("Erro ao reproduzir vídeo:", e));
+            remoteVideoRef.current.play().catch(e => console.error(t("common.errors.playVideoError"), e));
           }
         };
 
         peerConnection.current.onicecandidate = (event) => {
-          if (event.candidate && webSocket.current) {
-            webSocket.current.send(JSON.stringify({
+          if (event.candidate && ws.current?.readyState === WebSocket.OPEN) {
+            ws.current.send(JSON.stringify({
               type: "ice-candidate",
-              candidate: event.candidate,
+              candidate: event.candidate
             }));
           }
         };
 
         peerConnection.current.oniceconnectionstatechange = () => {
-          console.log("ICE Connection State:", peerConnection.current?.iceConnectionState);
+          console.log(t("common.debug.iceState"), peerConnection.current?.iceConnectionState);
         };
-
-        // Conectar ao WebSocket
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = new URL(`${wsProtocol}//${window.location.host}/api/ws`);
-        wsUrl.searchParams.set("roomId", roomId);
-        wsUrl.searchParams.set("hasCamera", String(!chatOnly));
-        wsUrl.searchParams.set("userName", userName);
-        wsUrl.searchParams.set("isPrivate", String(isPrivate));
-        wsUrl.searchParams.set("streamOnly", String(isStreamOnly));
-        if (password) {
-          wsUrl.searchParams.set("password", password);
-        }
-        if (chatOnly) {
-          wsUrl.searchParams.set("chatOnly", "true");
-        }
-
-        webSocket.current = new WebSocket(wsUrl.toString());
-
-        webSocket.current.onopen = () => {
-          webSocket.current?.send(JSON.stringify({
-            type: "start-transmitting",
-            userName,
-            chatOnly,
-          }));
-        };
-
-        webSocket.current.onmessage = async (event) => {
-          const data = JSON.parse(event.data);
-
-          if (data.type === "error") {
-            setError(data.message);
-            stopTransmission();
-            webSocket.current?.close();
-            return;
-          }
-
-          if (data.type === "creator-left") {
-            setError(data.message);
-            stopTransmission();
-            webSocket.current?.close();
-            // Redirecionar para a página inicial após um breve delay
-            setTimeout(() => {
-              window.location.href = "/";
-            }, 2000);
-            return;
-          }
-
-          if (data.type === "user-joined") {
-            setMessages(prev => [...prev, `${data.userName} entrou na sala`]);
-            // Criar e enviar oferta quando um novo usuário entrar e não for modo somente chat
-            if (peerConnection.current && !chatOnly && !isSpectator) {
-              try {
-                const offer = await peerConnection.current.createOffer({
-                  offerToReceiveAudio: true,
-                  offerToReceiveVideo: true
-                });
-                await peerConnection.current.setLocalDescription(offer);
-                webSocket.current?.send(JSON.stringify({
-                  type: "offer",
-                  offer,
-                }));
-              } catch (err) {
-                console.error("Erro ao criar oferta:", err);
-              }
-            }
-          } else if (data.type === "user-left") {
-            setMessages(prev => [...prev, `${data.userName} saiu da sala`]);
-            if (remoteVideoRef.current) {
-              remoteVideoRef.current.srcObject = null;
-            }
-          } else if (data.type === "offer" && !chatOnly) {
-            // Responder à oferta apenas se não for modo somente chat
-            if (peerConnection.current) {
-              try {
-                await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.offer));
-                const answer = await peerConnection.current.createAnswer({
-                  offerToReceiveAudio: true,
-                  offerToReceiveVideo: true
-                });
-                await peerConnection.current.setLocalDescription(answer);
-                webSocket.current?.send(JSON.stringify({
-                  type: "answer",
-                  answer,
-                }));
-              } catch (err) {
-                console.error("Erro ao processar oferta:", err);
-              }
-            }
-          } else if (data.type === "answer" && !chatOnly) {
-            // Processar resposta apenas se não for modo somente chat
-            if (peerConnection.current) {
-              try {
-                await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.answer));
-              } catch (err) {
-                console.error("Erro ao processar resposta:", err);
-              }
-            }
-          } else if (data.type === "ice-candidate" && !chatOnly) {
-            // Adicionar candidato ICE apenas se não for modo somente chat
-            if (peerConnection.current) {
-              try {
-                await peerConnection.current.addIceCandidate(new RTCIceCandidate(data.candidate));
-              } catch (err) {
-                console.error("Erro ao adicionar ICE candidate:", err);
-              }
-            }
-          } else if (data.type === "chat") {
-            // Adicionar mensagem ao chat
-            setMessages(prev => [...prev, `${data.userName || "Outro"}: ${data.message}`]);
-          }
-        };
-
-        setIsConnected(true);
-      } catch (err: unknown) {
-        console.error("Erro ao inicializar:", err);
-        if (err instanceof Error) {
-          setError("Erro ao acessar câmera e microfone. Por favor, permita o acesso.");
-        }
       }
-    };
 
-    initWebRTC();
+      // Conectar ao WebSocket
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const wsUrl = new URL(`${protocol}//${window.location.host}/api/ws`);
+      wsUrl.searchParams.set("roomId", roomId);
+      wsUrl.searchParams.set("hasCamera", String(!chatOnly));
+      wsUrl.searchParams.set("userName", userName);
+      wsUrl.searchParams.set("isPrivate", String(isPrivate));
+      wsUrl.searchParams.set("streamOnly", String(streamOnly));
 
-    return () => {
-      stopTransmission();
-      webSocket.current?.close();
-      peerConnection.current?.close();
-    };
-  }, [roomId, isPrivate, password, isCheckingRoom]);
+      if (password) {
+        wsUrl.searchParams.set("password", password);
+      }
 
-  const setupDataChannel = () => {
-    if (!dataChannel.current) return;
+      if (chatOnly) {
+        wsUrl.searchParams.set("chatOnly", "true");
+      }
 
-    dataChannel.current.onmessage = (event) => {
-      setMessages(prev => [...prev, `Outro: ${event.data}`]);
-    };
+      ws.current = new WebSocket(wsUrl.toString());
+
+      // Se for modo transmissão, iniciar transmissão
+      if (streamOnly && !chatOnly) {
+        setIsTransmitting(true);
+        ws.current.addEventListener("open", () => {
+          ws.current?.send(JSON.stringify({
+            type: "start-transmitting"
+          }));
+        });
+      }
+
+      // Configurar handlers de eventos WebSocket
+      ws.current.onmessage = async (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.type === "error") {
+          setError(data.message);
+          if (ws.current) {
+            ws.current.close();
+          }
+        }
+
+        if (data.type === "creator-left") {
+          setError(t("room.creatorLeft"));
+          if (ws.current) {
+            ws.current.close();
+          }
+        }
+
+        if (data.type === "user-joined" && !chatOnly) {
+          try {
+            const offer = await peerConnection.current?.createOffer();
+            await peerConnection.current?.setLocalDescription(offer);
+
+            if (ws.current?.readyState === WebSocket.OPEN) {
+              ws.current.send(JSON.stringify({
+                type: "offer",
+                offer
+              }));
+            }
+          } catch (err) {
+            console.error(t("common.errors.createOfferError"), err);
+          }
+        } else if (data.type === "user-left") {
+          if (remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = null;
+          }
+        } else if (data.type === "offer" && !chatOnly) {
+          try {
+            await peerConnection.current?.setRemoteDescription(new RTCSessionDescription(data.offer));
+            const answer = await peerConnection.current?.createAnswer();
+            await peerConnection.current?.setLocalDescription(answer);
+
+            if (ws.current?.readyState === WebSocket.OPEN) {
+              ws.current.send(JSON.stringify({
+                type: "answer",
+                answer
+              }));
+            }
+          } catch (err) {
+            console.error(t("common.errors.processOfferError"), err);
+          }
+        } else if (data.type === "answer" && !chatOnly) {
+          try {
+            const remoteDesc = new RTCSessionDescription(data.answer);
+            await peerConnection.current?.setRemoteDescription(remoteDesc);
+          } catch (err) {
+            console.error(t("common.errors.processAnswerError"), err);
+          }
+        } else if (data.type === "ice-candidate" && !chatOnly) {
+          try {
+            await peerConnection.current?.addIceCandidate(
+              new RTCIceCandidate(data.candidate)
+            );
+          } catch (err) {
+            console.error(t("common.errors.iceCandidateError"), err);
+          }
+        } else if (data.type === "chat") {
+          setMessages(prev => [...prev, `${data.userName || t("chat.otherUser")}: ${data.message}`]);
+        }
+      };
+    } catch (err) {
+      console.error(t("common.errors.initError"), err);
+      localStream.current = null;
+      setError(t("common.camera.error"));
+    }
   };
 
   const sendMessage = () => {
-    if (message.trim()) {
-      // Enviar via WebSocket para garantir que a mensagem chegue
-      webSocket.current?.send(JSON.stringify({
+    if (!newMessage.trim()) return;
+
+    // Enviar mensagem via WebSocket
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify({
         type: "chat",
-        message: message.trim(),
-        userName,
+        message: newMessage
       }));
 
-      // Enviar via DataChannel se disponível
-      if (dataChannel.current?.readyState === "open") {
-        dataChannel.current.send(message);
-      }
+      // Adicionar mensagem localmente
+      setMessages(prev => [...prev, `${userName}: ${newMessage}`]);
+    }
 
-      setMessages(prev => [...prev, `Você: ${message}`]);
-      setMessage("");
+    // Enviar mensagem via canal de dados WebRTC
+    if (dataChannel.current?.readyState === "open") {
+      dataChannel.current.send(JSON.stringify({
+        userName,
+        message: newMessage
+      }));
     }
-  };
 
-  const stopTransmission = () => {
-    setIsTransmitting(false);
-    if (localStream.current) {
-      localStream.current.getTracks().forEach(track => track.stop());
-      localStream.current = null;
-    }
-    if (peerConnection.current) {
-      peerConnection.current.close();
-      peerConnection.current = null;
-    }
-    if (dataChannel.current) {
-      dataChannel.current.close();
-      dataChannel.current = null;
-    }
-    if (webSocket.current) {
-      webSocket.current.close();
-      webSocket.current = null;
-    }
+    setNewMessage("");
   };
 
   const toggleTransmission = async () => {
-    if (chatOnly) return; // Não permitir toggle se for modo somente chat
-    
+    if (!ws.current || ws.current.readyState !== WebSocket.OPEN) return;
+
     if (isTransmitting) {
       // Parar transmissão
-      stopTransmission();
-      webSocket.current?.send(JSON.stringify({
-        type: "stop-transmitting",
-        userName,
+      ws.current.send(JSON.stringify({
+        type: "stop-transmitting"
       }));
+
+      // Parar todas as tracks
+      localStream.current?.getTracks().forEach(track => track.stop());
+      localStream.current = null;
+
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = null;
+      }
+
       setIsTransmitting(false);
     } else {
-      // Reiniciar transmissão
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        // Reiniciar câmera
+        localStream.current = await navigator.mediaDevices.getUserMedia({
           video: true,
-          audio: true,
+          audio: true
         });
-        localStream.current = stream;
+
         if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream;
+          localVideoRef.current.srcObject = localStream.current;
+          await localVideoRef.current.play();
         }
-        webSocket.current?.send(JSON.stringify({
-          type: "start-transmitting",
-          userName,
+
+        // Iniciar transmissão
+        ws.current.send(JSON.stringify({
+          type: "start-transmitting"
         }));
+
         setIsTransmitting(true);
       } catch (err) {
         console.error("Erro ao reiniciar câmera:", err);
-        setError("Erro ao acessar câmera e microfone. Por favor, permita o acesso.");
+        setError(t("common.camera.error"));
       }
     }
   };
 
-  // Adicionar evento beforeunload para limpar recursos quando o navegador for fechado
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    checkRoom().then(() => {
+      if (!error) {
+        initializeWebRTC();
+      }
+    });
+
     const handleBeforeUnload = () => {
-      stopTransmission();
+      localStream.current?.getTracks().forEach(track => track.stop());
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      stopTransmission();
+      localStream.current?.getTracks().forEach(track => track.stop());
+      ws.current?.close();
     };
   }, []);
 
@@ -439,108 +366,99 @@ export default function VideoChat({ roomId, chatOnly = false, userName = "Anôni
       <div class="p-4 bg-red-50 border border-red-200 rounded-lg">
         <p class="text-red-600">{error}</p>
         <a href="/" class="mt-4 inline-block text-blue-500 hover:underline">
-          Voltar para a página inicial
+          {t("common.back")}
         </a>
       </div>
     );
   }
 
+  if (isCheckingRoom) {
+    return <div>{t("common.loading")}</div>;
+  }
+
   return (
     <div class="flex flex-col h-screen">
-      <div class={`flex-1 ${(!chatOnly && !isStreamOnly) ? 'flex flex-col' : 'flex flex-row'} p-4 gap-4`}>
-        {/* Container principal dos vídeos */}
-        <div class={`
-          ${!chatOnly ? 'flex' : 'hidden'}
-          ${(!chatOnly && !isStreamOnly) ? 'flex-1 flex-row' : 'flex-1'}
-          gap-4 h-full
-        `}>
-          {/* Vídeo local - mostrado em modo normal ou quando é transmissor */}
-          {(!isStreamOnly || !isSpectator) && (!hideInactive || !isSpectator) && (
-            <div class={`relative flex-1 ${(isStreamOnly || hideInactive) ? 'w-full' : 'w-1/2'} bg-gray-900 rounded-lg overflow-hidden`}>
-              <video
-                ref={localVideoRef}
-                autoPlay
-                playsInline
-                muted
-                class={`w-full h-full object-cover ${!isTransmitting && "hidden"}`}
-              />
-              {isTransmitting && (
-                <div class="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
-                  Você
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Vídeo remoto - mostrado em modo normal ou quando é espectador */}
-          {(!isStreamOnly || isSpectator) && (!hideInactive || isSpectator) && (
-            <div class={`relative flex-1 ${(isStreamOnly || hideInactive) ? 'w-full' : 'w-1/2'} bg-gray-900 rounded-lg overflow-hidden`}>
-              <video
-                ref={remoteVideoRef}
-                autoPlay
-                playsInline
-                class="w-full h-full object-cover"
-              />
+      {!chatOnly && (
+        <div class="flex-1 grid grid-cols-2 gap-4 p-4 bg-gray-100">
+          {/* Vídeo Local */}
+          <div class="relative">
+            <video
+              ref={localVideoRef}
+              autoPlay
+              playsInline
+              muted
+              class={`w-full h-full object-cover ${!isTransmitting && "hidden"}`}
+            />
+            {isTransmitting && (
               <div class="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
-                {isStreamOnly ? 'Transmissor' : 'Outro participante'}
+                {userName} ({t("common.you")})
               </div>
+            )}
+          </div>
+
+          {/* Vídeo Remoto */}
+          <div class="relative">
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              class="w-full h-full object-cover"
+            />
+            <div class="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
+              {t("common.anonymous")}
             </div>
-          )}
+          </div>
+        </div>
+      )}
+
+      {/* Chat */}
+      <div class="h-1/2 flex flex-col bg-white">
+        <div class="p-4 border-b">
+          <h2 class="text-lg font-semibold">{t("chat.title")}</h2>
+        </div>
+        <div class="flex-1 p-4 overflow-y-auto">
+          {messages.map((message, index) => (
+            <div key={index} class="mb-2 p-2 rounded bg-gray-50">
+              {message}
+            </div>
+          ))}
+        </div>
+        <div class="p-4 border-t">
+          <div class="flex gap-2">
+            <input
+              type="text"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.currentTarget.value)}
+              onKeyPress={(e) => e.key === "Enter" && sendMessage()}
+              placeholder={t("chat.typeMessage")}
+              class="flex-1 px-3 py-2 border rounded"
+            />
+            <button
+              onClick={sendMessage}
+              class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              {t("chat.sendMessage")}
+            </button>
+          </div>
         </div>
 
-        {/* Chat container */}
-        <div class={`
-          flex flex-col bg-white rounded-lg shadow-lg
-          ${chatOnly ? 'flex-1' : ''}
-          ${(!chatOnly && !isStreamOnly) ? 'h-64' : 'w-80'}
-        `}>
-          <div class="p-4 border-b">
-            <h2 class="text-lg font-semibold">Chat</h2>
-          </div>
-          <div class="flex-1 p-4 overflow-y-auto">
-            {messages.map((message, index) => (
-              <div key={index} class="mb-2 p-2 rounded bg-gray-50">
-                {message}
-              </div>
-            ))}
-          </div>
-          <div class="p-4 border-t">
-            <div class="flex gap-2">
-              <input
-                type="text"
-                value={message}
-                onChange={(e) => setMessage(e.currentTarget.value)}
-                onKeyPress={(e) => e.key === "Enter" && sendMessage()}
-                placeholder="Digite sua mensagem..."
-                class="flex-1 px-3 py-2 border rounded"
-              />
+        {/* Controles de Transmissão */}
+        {!chatOnly && streamOnly && (
+          <div class="p-4 bg-gray-100 border-t">
+            <div class="flex justify-center gap-4">
               <button
-                onClick={sendMessage}
-                class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                onClick={toggleTransmission}
+                class={`px-4 py-2 text-white rounded transition ${
+                  isTransmitting
+                    ? "bg-red-500 hover:bg-red-600"
+                    : "bg-green-500 hover:bg-green-600"
+                }`}
               >
-                Enviar
+                {isTransmitting ? t("room.stopTransmission") : t("room.startTransmission")}
               </button>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Controles */}
-      <div class="p-4 bg-gray-100 border-t">
-        <div class="flex justify-center gap-4">
-          {!chatOnly && (
-            <button
-              onClick={toggleTransmission}
-              class={`px-6 py-2 rounded-lg font-medium ${
-                isTransmitting
-                  ? "bg-red-500 hover:bg-red-600"
-                  : "bg-green-500 hover:bg-green-600"
-              } text-white transition-colors`}
-            >
-              {isTransmitting ? "Parar Transmissão" : "Iniciar Transmissão"}
-            </button>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );

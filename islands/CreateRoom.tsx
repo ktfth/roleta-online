@@ -1,17 +1,18 @@
 import { h } from "preact";
 import { useState } from "preact/hooks";
+import { useTranslation } from "../hooks/useTranslation.ts";
 
 export default function CreateRoom() {
   const [isPrivate, setIsPrivate] = useState(false);
   const [password, setPassword] = useState("");
   const [isStreamOnly, setIsStreamOnly] = useState(false);
   const [isChatOnly, setIsChatOnly] = useState(false);
+  const { t } = useTranslation();
 
   const createRoom = () => {
     const roomId = crypto.randomUUID().substring(0, 8);
     const url = new URL(`/sala/${roomId}`, window.location.href);
     
-    // Adicionar parâmetros para identificar que somos o criador
     url.searchParams.set("creator", "true");
     
     if (isPrivate && password) {
@@ -19,7 +20,6 @@ export default function CreateRoom() {
       url.searchParams.set("password", password);
     }
 
-    // Sempre passar o valor de streamOnly, mesmo em salas normais
     url.searchParams.set("streamOnly", String(isStreamOnly));
 
     if (isChatOnly) {
@@ -31,7 +31,7 @@ export default function CreateRoom() {
 
   return (
     <div class="space-y-4">
-      <div class="space-y-4">
+      <div class="space-y-2">
         <div class="flex items-center gap-2">
           <input
             type="checkbox"
@@ -44,22 +44,9 @@ export default function CreateRoom() {
             class="rounded border-gray-300"
           />
           <label htmlFor="isChatOnly" class="text-sm text-gray-700">
-            Apenas chat (sem vídeo)
+            {t("room.chatOnly")}
           </label>
         </div>
-
-        {/* <div class="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="isPrivate"
-            checked={isPrivate}
-            onChange={(e) => setIsPrivate(e.currentTarget.checked)}
-            class="rounded border-gray-300"
-          />
-          <label htmlFor="isPrivate" class="text-sm text-gray-700">
-            Criar sala privada
-          </label>
-        </div> */}
 
         <div class="flex items-center gap-2">
           <input
@@ -71,7 +58,7 @@ export default function CreateRoom() {
             class="rounded border-gray-300"
           />
           <label htmlFor="isStreamOnly" class={`text-sm ${isChatOnly ? "text-gray-400" : "text-gray-700"}`}>
-            Modo transmissão (apenas espectadores)
+            {t("room.streamOnly")}
           </label>
         </div>
       </div>
@@ -82,13 +69,13 @@ export default function CreateRoom() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.currentTarget.value)}
-            placeholder="Digite a senha da sala"
+            placeholder={t("room.passwordPlaceholder")}
             class="w-full px-3 py-2 border rounded"
             required
             minLength={4}
           />
           <p class="text-xs text-gray-500">
-            A senha deve ter pelo menos 4 caracteres
+            {t("room.passwordHint")}
           </p>
         </div>
       )}
@@ -98,7 +85,10 @@ export default function CreateRoom() {
         disabled={isPrivate && password.length < 4}
         class="block w-full text-center py-3 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        Criar Sala {isPrivate && "Privada"} {isStreamOnly && "(Transmissão)"} {isChatOnly && "(Apenas Chat)"}
+        {t("common.createRoom")} 
+        {isPrivate && t("common.createRoomButton.private")} 
+        {isStreamOnly && t("common.createRoomButton.stream")} 
+        {isChatOnly && t("common.createRoomButton.chatOnly")}
       </button>
     </div>
   );

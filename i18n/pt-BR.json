@@ -1,0 +1,61 @@
+{
+  "common": {
+    "createRoom": "Criar Sala",
+    "joinRoom": "Entrar na Sala",
+    "back": "Voltar",
+    "loading": "Carregando...",
+    "error": "Erro",
+    "title": "Roleta Online - Chat com Vídeo",
+    "or": "ou",
+    "anonymous": "Anônimo",
+    "forkOnGithub": "Faça um fork no GitHub"
+  },
+  "room": {
+    "title": "Sala",
+    "waiting": "Aguardando outros jogadores...",
+    "players": "Jogadores",
+    "start": "Iniciar Jogo",
+    "yourTurn": "Sua vez",
+    "waitingTurn": "Aguardando sua vez...",
+    "chatOnly": "Apenas chat (sem vídeo)",
+    "streamOnly": "Modo transmissão (apenas espectadores)",
+    "passwordPlaceholder": "Digite a senha da sala",
+    "passwordHint": "A senha deve ter pelo menos 4 caracteres",
+    "private": "Privada",
+    "streamMode": "Transmissão",
+    "chatMode": "Apenas Chat",
+    "enterChat": "Entrar no Chat",
+    "watchStream": "Assistir Transmissão",
+    "enterRoom": "Entrar na Sala",
+    "textChat": "Chat de texto",
+    "liveStream": "Transmissão ao vivo",
+    "videoChat": "Chat com vídeo",
+    "noActiveRooms": "Nenhuma sala ativa",
+    "beFirstToCreate": "Seja o primeiro a criar uma sala!"
+  },
+  "chat": {
+    "sendMessage": "Enviar mensagem",
+    "placeholder": "Digite sua mensagem..."
+  },
+  "home": {
+    "startNewChat": "Iniciar Novo Chat",
+    "textOnlyChat": "Chat Apenas Texto",
+    "liveStreams": "Transmissões Ao Vivo",
+    "howToUse": "Como Usar",
+    "createStream": "Criar uma Transmissão",
+    "watchStream": "Assistir uma Transmissão",
+    "howTo": {
+      "step1": "Clique em \"Criar Sala\"",
+      "step2": "Escolha entre sala pública ou privada",
+      "step3": "Se privada, defina uma senha",
+      "step4": "Digite seu nome (opcional)",
+      "step5": "Permita o acesso à câmera e microfone",
+      "step6": "Compartilhe o link da sua transmissão",
+      "watch1": "Escolha uma transmissão ao vivo da lista",
+      "watch2": "Digite a senha se for uma sala privada",
+      "watch3": "Ou clique em \"Chat Aleatório\" para uma conversa surpresa",
+      "watch4": "Interaja através do chat em tempo real",
+      "watch5": "Inicie sua própria transmissão quando quiser"
+    }
+  }
+} 
