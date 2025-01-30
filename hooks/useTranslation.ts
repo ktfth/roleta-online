@@ -14,6 +14,7 @@ export function useTranslation() {
     const handleLanguageChanged = (lng: string) => {
       currentLanguage.value = lng;
       translationFn.value = () => i18next.t.bind(i18next);
+      document.documentElement.lang = lng;
     };
 
     i18next.on("languageChanged", handleLanguageChanged);
@@ -33,7 +34,10 @@ export function useTranslation() {
   };
 
   return {
-    t: (...args: Parameters<typeof i18next.t>) => translationFn.value()(...args),
+    t: (...args: Parameters<typeof i18next.t>) => {
+      const fn = translationFn.value();
+      return fn(...args);
+    },
     i18n: i18next,
     language: currentLanguage.value,
     changeLanguage

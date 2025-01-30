@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 
 import { h } from "preact";
-import { t } from "../utils/i18n.ts";
+import { useTranslation } from "../hooks/useTranslation.ts";
 
 interface VideoChatProps {
   roomId: string;
@@ -12,19 +12,56 @@ interface VideoChatProps {
   streamOnly?: boolean;
 }
 
-export default function VideoChat({ roomId, chatOnly = false, userName = t("common.anonymous"), isPrivate, password, streamOnly = false }: VideoChatProps) {
+export default function VideoChat({ roomId, chatOnly = false, userName, isPrivate, password, streamOnly = false }: VideoChatProps) {
+  const { t, language } = useTranslation();
+  const defaultUserName = t("common.anonymous");
+  const [currentUserName, setCurrentUserName] = useState(userName || defaultUserName);
   const [error, setError] = useState<string | null>(null);
   const [messages, setMessages] = useState<string[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isCheckingRoom, setIsCheckingRoom] = useState(true);
   const [isTransmitting, setIsTransmitting] = useState(false);
+  const [isCreator, setIsCreator] = useState(false);
 
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const peerConnection = useRef<RTCPeerConnection | null>(null);
   const dataChannel = useRef<RTCDataChannel | null>(null);
   const ws = useRef<WebSocket | null>(null);
   const localStream = useRef<MediaStream | null>(null);
+
+  // Efeito para reagir às mudanças de idioma
+  useEffect(() => {
+    if (!userName && defaultUserName !== currentUserName) {
+      setCurrentUserName(defaultUserName);
+    }
+  }, [language, defaultUserName, userName]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      setIsCreator(params.get("creator") === "true");
+    }
+    checkRoom();
+  }, []);
+
+  useEffect(() => {
+    if (!isCheckingRoom) {
+      initializeWebRTC();
+    }
+    return () => {
+      // Cleanup
+      if (localStream.current) {
+        localStream.current.getTracks().forEach(track => track.stop());
+      }
+      if (peerConnection.current) {
+        peerConnection.current.close();
+      }
+      if (ws.current) {
+        ws.current.close();
+      }
+    };
+  }, [isCheckingRoom]);
 
   const checkRoom = async () => {
     if (typeof window === "undefined") return;
@@ -94,9 +131,11 @@ export default function VideoChat({ roomId, chatOnly = false, userName = t("comm
 
     try {
       // Solicitar nome do usuário se não fornecido
-      if (!userName || userName === t("common.anonymous")) {
-        const name = prompt(t("common.enterName"), t("common.anonymous"));
-        if (name) userName = name;
+      if (currentUserName === defaultUserName) {
+        const name = prompt(t("common.enterName"), defaultUserName);
+        if (name) {
+          setCurrentUserName(name);
+        }
       }
 
       // Configurar conexão WebRTC
@@ -169,9 +208,15 @@ export default function VideoChat({ roomId, chatOnly = false, userName = t("comm
       const wsUrl = new URL(`${protocol}//${window.location.host}/api/ws`);
       wsUrl.searchParams.set("roomId", roomId);
       wsUrl.searchParams.set("hasCamera", String(!chatOnly));
-      wsUrl.searchParams.set("userName", userName);
+      wsUrl.searchParams.set("userName", currentUserName);
       wsUrl.searchParams.set("isPrivate", String(isPrivate));
       wsUrl.searchParams.set("streamOnly", String(streamOnly));
+      wsUrl.searchParams.set("creator", String(isCreator));
+      
+      // Ajustar o parâmetro hide baseado no criador da sala
+      if (streamOnly) {
+        wsUrl.searchParams.set("hide", isCreator ? "remote" : "local");
+      }
 
       if (password) {
         wsUrl.searchParams.set("password", password);
@@ -183,8 +228,8 @@ export default function VideoChat({ roomId, chatOnly = false, userName = t("comm
 
       ws.current = new WebSocket(wsUrl.toString());
 
-      // Se for modo transmissão, iniciar transmissão
-      if (streamOnly && !chatOnly) {
+      // Se for modo transmissão e for o criador, iniciar transmissão
+      if (streamOnly && isCreator) {
         setIsTransmitting(true);
         ws.current.addEventListener("open", () => {
           ws.current?.send(JSON.stringify({
@@ -202,16 +247,12 @@ export default function VideoChat({ roomId, chatOnly = false, userName = t("comm
           if (ws.current) {
             ws.current.close();
           }
-        }
-
-        if (data.type === "creator-left") {
+        } else if (data.type === "creator-left") {
           setError(t("room.creatorLeft"));
           if (ws.current) {
             ws.current.close();
           }
-        }
-
-        if (data.type === "user-joined" && !chatOnly) {
+        } else if (data.type === "user-joined" && !chatOnly) {
           try {
             const offer = await peerConnection.current?.createOffer();
             await peerConnection.current?.setLocalDescription(offer);
@@ -253,177 +294,138 @@ export default function VideoChat({ roomId, chatOnly = false, userName = t("comm
           }
         } else if (data.type === "ice-candidate" && !chatOnly) {
           try {
-            await peerConnection.current?.addIceCandidate(
-              new RTCIceCandidate(data.candidate)
-            );
+            await peerConnection.current?.addIceCandidate(new RTCIceCandidate(data.candidate));
           } catch (err) {
             console.error(t("common.errors.iceCandidateError"), err);
           }
         } else if (data.type === "chat") {
-          setMessages(prev => [...prev, `${data.userName || t("chat.otherUser")}: ${data.message}`]);
+          // Adiciona a mensagem recebida
+          const messageText = `${data.userName}: ${data.message}`;
+          setMessages(prev => [...prev, messageText]);
         }
       };
+
+      // Adicionar handler para quando a página for fechada
+      window.addEventListener("beforeunload", handleBeforeUnload);
     } catch (err) {
       console.error(t("common.errors.initError"), err);
-      localStream.current = null;
-      setError(t("common.camera.error"));
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleBeforeUnload = () => {
+    if (ws.current) {
+      ws.current.close();
     }
   };
 
   const sendMessage = () => {
-    if (!newMessage.trim()) return;
-
-    // Enviar mensagem via WebSocket
-    if (ws.current?.readyState === WebSocket.OPEN) {
-      ws.current.send(JSON.stringify({
+    if (newMessage.trim() && ws.current?.readyState === WebSocket.OPEN) {
+      const messageData = {
         type: "chat",
-        message: newMessage
-      }));
+        userName: currentUserName,
+        message: newMessage.trim()
+      };
 
-      // Adicionar mensagem localmente
-      setMessages(prev => [...prev, `${userName}: ${newMessage}`]);
+      ws.current.send(JSON.stringify(messageData));
+
+      // Adiciona a mensagem localmente
+      setMessages(prev => [...prev, `${currentUserName}: ${newMessage.trim()}`]);
+      setNewMessage("");
     }
-
-    // Enviar mensagem via canal de dados WebRTC
-    if (dataChannel.current?.readyState === "open") {
-      dataChannel.current.send(JSON.stringify({
-        userName,
-        message: newMessage
-      }));
-    }
-
-    setNewMessage("");
   };
 
   const toggleTransmission = async () => {
     if (!ws.current || ws.current.readyState !== WebSocket.OPEN) return;
 
     if (isTransmitting) {
-      // Parar transmissão
       ws.current.send(JSON.stringify({
         type: "stop-transmitting"
       }));
-
-      // Parar todas as tracks
-      localStream.current?.getTracks().forEach(track => track.stop());
-      localStream.current = null;
-
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = null;
-      }
-
       setIsTransmitting(false);
     } else {
-      try {
-        // Reiniciar câmera
-        localStream.current = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true
-        });
-
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = localStream.current;
-          await localVideoRef.current.play();
-        }
-
-        // Iniciar transmissão
-        ws.current.send(JSON.stringify({
-          type: "start-transmitting"
-        }));
-
-        setIsTransmitting(true);
-      } catch (err) {
-        console.error("Erro ao reiniciar câmera:", err);
-        setError(t("common.camera.error"));
-      }
+      ws.current.send(JSON.stringify({
+        type: "start-transmitting"
+      }));
+      setIsTransmitting(true);
     }
   };
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    checkRoom().then(() => {
-      if (!error) {
-        initializeWebRTC();
-      }
-    });
-
-    const handleBeforeUnload = () => {
-      localStream.current?.getTracks().forEach(track => track.stop());
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-      localStream.current?.getTracks().forEach(track => track.stop());
-      ws.current?.close();
-    };
-  }, []);
-
   if (error) {
     return (
-      <div class="p-4 bg-red-50 border border-red-200 rounded-lg">
-        <p class="text-red-600">{error}</p>
-        <a href="/" class="mt-4 inline-block text-blue-500 hover:underline">
-          {t("common.back")}
-        </a>
+      <div class="p-4 bg-red-100 text-red-700 rounded">
+        <p>{error}</p>
+        <div class="mt-4">
+          <a href="/" class="inline-block text-blue-500 hover:underline">
+            {t("common.back")}
+          </a>
+        </div>
       </div>
     );
   }
 
   if (isCheckingRoom) {
-    return <div>{t("common.loading")}</div>;
+    return (
+      <div class="p-4">
+        <p>{t("common.loading")}</p>
+      </div>
+    );
   }
 
   return (
-    <div class="flex flex-col h-screen">
-      {!chatOnly && (
-        <div class="flex-1 grid grid-cols-2 gap-4 p-4 bg-gray-100">
-          {/* Vídeo Local */}
-          <div class="relative">
-            <video
-              ref={localVideoRef}
-              autoPlay
-              playsInline
-              muted
-              class={`w-full h-full object-cover ${!isTransmitting && "hidden"}`}
-            />
-            {isTransmitting && (
-              <div class="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
-                {userName} ({t("common.you")})
+    <div class="p-4">
+      <div class="flex flex-col gap-4">
+        {!chatOnly && (
+          <div class={`grid ${streamOnly ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
+            {(!streamOnly || (streamOnly && isCreator)) && (
+              <div class={`relative ${streamOnly ? 'col-span-1' : ''}`}>
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  class="w-full rounded-lg bg-black aspect-video"
+                />
+                <div class="absolute top-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
+                  {t("common.you")}
+                </div>
+              </div>
+            )}
+            {(!streamOnly || (streamOnly && !isCreator)) && (
+              <div class={`relative ${streamOnly ? 'col-span-1' : ''}`}>
+                <video
+                  ref={remoteVideoRef}
+                  autoPlay
+                  playsInline
+                  class="w-full rounded-lg bg-black aspect-video"
+                />
+                {streamOnly && (
+                  <div class="absolute top-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
+                    {t("common.streamer")}
+                  </div>
+                )}
+              </div>
+            )}
+            {streamOnly && isCreator && (
+              <div class="col-span-1">
+                <button
+                  onClick={toggleTransmission}
+                  class="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                >
+                  {isTransmitting ? t("room.stopTransmission") : t("room.startTransmission")}
+                </button>
               </div>
             )}
           </div>
-
-          {/* Vídeo Remoto */}
-          <div class="relative">
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-              class="w-full h-full object-cover"
-            />
-            <div class="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
-              {t("common.anonymous")}
-            </div>
+        )}
+        <div class="space-y-4">
+          <div class="h-96 overflow-y-auto p-4 bg-gray-100 rounded-lg">
+            {messages.map((message, index) => (
+              <div key={index} class="mb-2">
+                <p>{message}</p>
+              </div>
+            ))}
           </div>
-        </div>
-      )}
-
-      {/* Chat */}
-      <div class="h-1/2 flex flex-col bg-white">
-        <div class="p-4 border-b">
-          <h2 class="text-lg font-semibold">{t("chat.title")}</h2>
-        </div>
-        <div class="flex-1 p-4 overflow-y-auto">
-          {messages.map((message, index) => (
-            <div key={index} class="mb-2 p-2 rounded bg-gray-50">
-              {message}
-            </div>
-          ))}
-        </div>
-        <div class="p-4 border-t">
           <div class="flex gap-2">
             <input
               type="text"
@@ -441,24 +443,6 @@ export default function VideoChat({ roomId, chatOnly = false, userName = t("comm
             </button>
           </div>
         </div>
-
-        {/* Controles de Transmissão */}
-        {!chatOnly && streamOnly && (
-          <div class="p-4 bg-gray-100 border-t">
-            <div class="flex justify-center gap-4">
-              <button
-                onClick={toggleTransmission}
-                class={`px-4 py-2 text-white rounded transition ${
-                  isTransmitting
-                    ? "bg-red-500 hover:bg-red-600"
-                    : "bg-green-500 hover:bg-green-600"
-                }`}
-              >
-                {isTransmitting ? t("room.stopTransmission") : t("room.startTransmission")}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

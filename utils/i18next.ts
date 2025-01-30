@@ -8,7 +8,7 @@ const resources = {
       common: {
         createRoom: "Criar Sala",
         joinRoom: "Entrar na Sala",
-        back: "Voltar",
+        back: "Voltar para a página inicial",
         loading: "Carregando...",
         error: "Erro",
         title: "Roleta Online - Chat com Vídeo",
@@ -21,6 +21,7 @@ const resources = {
           accessError: "Erro ao acessar mídia:"
         },
         you: "Você",
+        streamer: "Transmissor",
         errors: {
           initError: "Erro ao inicializar:",
           createOfferError: "Erro ao criar oferta:",
@@ -62,7 +63,9 @@ const resources = {
         liveStream: "Transmissão ao vivo",
         videoChat: "Chat com vídeo",
         noActiveRooms: "Nenhuma sala ativa",
-        beFirstToCreate: "Seja o primeiro a criar uma sala!"
+        beFirstToCreate: "Seja o primeiro a criar uma sala!",
+        startTransmission: "Iniciar Transmissão",
+        stopTransmission: "Parar Transmissão"
       },
       chat: {
         sendMessage: "Enviar mensagem",
@@ -99,7 +102,7 @@ const resources = {
       common: {
         createRoom: "Create Room",
         joinRoom: "Join Room",
-        back: "Back",
+        back: "Back to home page",
         loading: "Loading...",
         error: "Error",
         title: "Online Roulette - Video Chat",
@@ -112,6 +115,7 @@ const resources = {
           accessError: "Error accessing media:"
         },
         you: "You",
+        streamer: "Streamer",
         errors: {
           initError: "Error initializing:",
           createOfferError: "Error creating offer:",
@@ -153,7 +157,9 @@ const resources = {
         liveStream: "Live stream",
         videoChat: "Video chat",
         noActiveRooms: "No active rooms",
-        beFirstToCreate: "Be the first to create a room!"
+        beFirstToCreate: "Be the first to create a room!",
+        startTransmission: "Start Transmission",
+        stopTransmission: "Stop Transmission"
       },
       chat: {
         sendMessage: "Send message",
