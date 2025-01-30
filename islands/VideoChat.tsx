@@ -373,41 +373,47 @@ export default function VideoChat({ roomId, chatOnly = false, userName, isPrivat
   }
 
   return (
-    <div class="p-4">
-      <div class="flex flex-col gap-4">
+    <div class={`${chatOnly ? 'h-[calc(100vh-4rem)] flex flex-col' : 'container mx-auto p-4'}`}>
+      <div class={`flex flex-col ${chatOnly ? 'flex-1' : 'gap-4'}`}>
         {!chatOnly && (
-          <div class={`grid ${streamOnly ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
-            {(!streamOnly || (streamOnly && isCreator)) && (
-              <div class={`relative ${streamOnly ? 'col-span-1' : ''}`}>
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  class="w-full rounded-lg bg-black aspect-video"
-                />
-                <div class="absolute top-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
-                  {t("common.you")}
-                </div>
-              </div>
-            )}
-            {(!streamOnly || (streamOnly && !isCreator)) && (
-              <div class={`relative ${streamOnly ? 'col-span-1' : ''}`}>
-                <video
-                  ref={remoteVideoRef}
-                  autoPlay
-                  playsInline
-                  class="w-full rounded-lg bg-black aspect-video"
-                />
-                {streamOnly && (
-                  <div class="absolute top-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
-                    {t("common.streamer")}
+          <div class="w-full">
+            <div class="flex flex-col md:flex-row gap-4 max-w-[1920px] mx-auto">
+              {(!streamOnly || (streamOnly && isCreator)) && (
+                <div class="relative w-full">
+                  <div class="aspect-w-16 aspect-h-9">
+                    <video
+                      ref={localVideoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      class="w-full h-full rounded-lg bg-black object-cover"
+                    />
                   </div>
-                )}
-              </div>
-            )}
+                  <div class="absolute top-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
+                    {t("common.you")}
+                  </div>
+                </div>
+              )}
+              {(!streamOnly || (streamOnly && !isCreator)) && (
+                <div class="relative w-full">
+                  <div class="aspect-w-16 aspect-h-9">
+                    <video
+                      ref={remoteVideoRef}
+                      autoPlay
+                      playsInline
+                      class="w-full h-full rounded-lg bg-black object-cover"
+                    />
+                  </div>
+                  {streamOnly && (
+                    <div class="absolute top-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
+                      {t("common.streamer")}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             {streamOnly && isCreator && (
-              <div class="col-span-1">
+              <div class="mt-4 max-w-3xl mx-auto w-full">
                 <button
                   onClick={toggleTransmission}
                   class="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
@@ -418,15 +424,15 @@ export default function VideoChat({ roomId, chatOnly = false, userName, isPrivat
             )}
           </div>
         )}
-        <div class="space-y-4">
-          <div class="h-96 overflow-y-auto p-4 bg-gray-100 rounded-lg">
+        <div class={`flex flex-col ${chatOnly ? 'flex-1' : 'space-y-4'}`}>
+          <div class={`${chatOnly ? 'flex-1 overflow-y-auto px-4' : 'h-96 overflow-y-auto p-4'} bg-gray-100 rounded-lg`}>
             {messages.map((message, index) => (
               <div key={index} class="mb-2">
                 <p>{message}</p>
               </div>
             ))}
           </div>
-          <div class="flex gap-2">
+          <div class={`flex gap-2 ${chatOnly ? 'p-4 bg-white border-t' : ''}`}>
             <input
               type="text"
               value={newMessage}
