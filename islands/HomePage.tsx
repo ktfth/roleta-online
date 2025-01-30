@@ -55,20 +55,6 @@ export default function HomePage({ rooms }: HomePageProps) {
           <h2 class="text-2xl font-semibold mb-4">{t("home.startNewChat")}</h2>
           <div class="space-y-4">
             <CreateRoom />
-            <div class="relative">
-              <div class="absolute inset-0 flex items-center">
-                <div class="w-full border-t border-gray-300"></div>
-              </div>
-              <div class="relative flex justify-center text-sm">
-                <span class="px-2 bg-white text-gray-500">{t("common.or")}</span>
-              </div>
-            </div>
-            <a
-              href={`/${getRandomRoom()}?chatOnly=true`}
-              class="block w-full text-center py-3 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-            >
-              {t("home.textOnlyChat")}
-            </a>
           </div>
         </div>
 

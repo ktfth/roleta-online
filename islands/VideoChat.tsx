@@ -26,11 +26,9 @@ export default function VideoChat({ roomId, chatOnly = false, userName, isPrivat
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const peerConnection = useRef<RTCPeerConnection | null>(null);
-  const dataChannel = useRef<RTCDataChannel | null>(null);
   const ws = useRef<WebSocket | null>(null);
   const localStream = useRef<MediaStream | null>(null);
 
-  // Efeito para reagir às mudanças de idioma
   useEffect(() => {
     if (!userName && defaultUserName !== currentUserName) {
       setCurrentUserName(defaultUserName);
@@ -50,7 +48,6 @@ export default function VideoChat({ roomId, chatOnly = false, userName, isPrivat
       initializeWebRTC();
     }
     return () => {
-      // Cleanup
       if (localStream.current) {
         localStream.current.getTracks().forEach(track => track.stop());
       }
@@ -127,62 +124,39 @@ export default function VideoChat({ roomId, chatOnly = false, userName, isPrivat
   };
 
   const initializeWebRTC = async () => {
-    if (typeof window === "undefined" || isCheckingRoom) return;
-
     try {
-      // Solicitar nome do usuário se não fornecido
-      if (currentUserName === defaultUserName) {
-        const name = prompt(t("common.enterName"), defaultUserName);
-        if (name) {
-          setCurrentUserName(name);
-        }
-      }
-
-      // Configurar conexão WebRTC
-      peerConnection.current = new RTCPeerConnection({
-        iceServers: [
-          { urls: "stun:stun.l.google.com:19302" },
-          { urls: "stun:stun1.l.google.com:19302" },
-          { urls: "stun:stun2.l.google.com:19302" }
-        ]
-      });
-
-      // Se não for apenas chat, configurar vídeo
       if (!chatOnly) {
+        const configuration = {
+          iceServers: [
+            { urls: "stun:stun.l.google.com:19302" }
+          ]
+        };
+        peerConnection.current = new RTCPeerConnection(configuration);
+
         try {
           localStream.current = await navigator.mediaDevices.getUserMedia({
             video: true,
             audio: true
           });
 
-          // Adicionar tracks à conexão peer
-          localStream.current.getTracks().forEach(track => {
-            if (localStream.current) {
-              peerConnection.current?.addTrack(track, localStream.current);
-            }
-          });
-
-          // Mostrar vídeo local
           if (localVideoRef.current) {
             localVideoRef.current.srcObject = localStream.current;
-            await localVideoRef.current.play();
           }
-        } catch (mediaErr) {
-          console.error(t("common.camera.accessError"), mediaErr);
-          localStream.current = null;
-          setError(t("common.camera.error"));
+
+          localStream.current.getTracks().forEach(track => {
+            if (peerConnection.current && localStream.current) {
+              peerConnection.current.addTrack(track, localStream.current);
+            }
+          });
+        } catch (err) {
+          console.error(t("common.errors.mediaDevicesError"), err);
+          setError(t("common.errors.cameraAccessDenied"));
+          return;
         }
       }
 
-      // Configurar canal de dados para chat
-      if (peerConnection.current) {
-        dataChannel.current = peerConnection.current.createDataChannel("chat");
-      }
-
-      // Configurar handlers de eventos WebRTC
       if (peerConnection.current) {
         peerConnection.current.ontrack = (event) => {
-          console.log(t("common.debug.receivingTrack"), event.streams[0]);
           if (remoteVideoRef.current) {
             remoteVideoRef.current.srcObject = event.streams[0];
             remoteVideoRef.current.play().catch(e => console.error(t("common.errors.playVideoError"), e));
@@ -203,7 +177,6 @@ export default function VideoChat({ roomId, chatOnly = false, userName, isPrivat
         };
       }
 
-      // Conectar ao WebSocket
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const wsUrl = new URL(`${protocol}//${window.location.host}/api/ws`);
       wsUrl.searchParams.set("roomId", roomId);
@@ -213,7 +186,6 @@ export default function VideoChat({ roomId, chatOnly = false, userName, isPrivat
       wsUrl.searchParams.set("streamOnly", String(streamOnly));
       wsUrl.searchParams.set("creator", String(isCreator));
       
-      // Ajustar o parâmetro hide baseado no criador da sala
       if (streamOnly) {
         wsUrl.searchParams.set("hide", isCreator ? "remote" : "local");
       }
@@ -228,7 +200,6 @@ export default function VideoChat({ roomId, chatOnly = false, userName, isPrivat
 
       ws.current = new WebSocket(wsUrl.toString());
 
-      // Se for modo transmissão e for o criador, iniciar transmissão
       if (streamOnly && isCreator) {
         setIsTransmitting(true);
         ws.current.addEventListener("open", () => {
@@ -238,7 +209,6 @@ export default function VideoChat({ roomId, chatOnly = false, userName, isPrivat
         });
       }
 
-      // Configurar handlers de eventos WebSocket
       ws.current.onmessage = async (event) => {
         const data = JSON.parse(event.data);
 
@@ -299,13 +269,11 @@ export default function VideoChat({ roomId, chatOnly = false, userName, isPrivat
             console.error(t("common.errors.iceCandidateError"), err);
           }
         } else if (data.type === "chat") {
-          // Adiciona a mensagem recebida
           const messageText = `${data.userName}: ${data.message}`;
           setMessages(prev => [...prev, messageText]);
         }
       };
 
-      // Adicionar handler para quando a página for fechada
       window.addEventListener("beforeunload", handleBeforeUnload);
     } catch (err) {
       console.error(t("common.errors.initError"), err);
@@ -328,8 +296,6 @@ export default function VideoChat({ roomId, chatOnly = false, userName, isPrivat
       };
 
       ws.current.send(JSON.stringify(messageData));
-
-      // Adiciona a mensagem localmente
       setMessages(prev => [...prev, `${currentUserName}: ${newMessage.trim()}`]);
       setNewMessage("");
     }

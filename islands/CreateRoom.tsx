@@ -63,23 +63,6 @@ export default function CreateRoom() {
         </div>
       </div>
 
-      {isPrivate && (
-        <div class="space-y-2">
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.currentTarget.value)}
-            placeholder={t("room.passwordPlaceholder")}
-            class="w-full px-3 py-2 border rounded"
-            required
-            minLength={4}
-          />
-          <p class="text-xs text-gray-500">
-            {t("room.passwordHint")}
-          </p>
-        </div>
-      )}
-
       <button
         onClick={createRoom}
         disabled={isPrivate && password.length < 4}
