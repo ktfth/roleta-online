@@ -378,16 +378,6 @@ export default function VideoChat({ roomId, chatOnly = false, userName, isPrivat
                 </div>
               )}
             </div>
-            {streamOnly && isCreator && (
-              <div class="mt-4 max-w-3xl mx-auto w-full">
-                <button
-                  onClick={toggleTransmission}
-                  class="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                >
-                  {isTransmitting ? t("room.stopTransmission") : t("room.startTransmission")}
-                </button>
-              </div>
-            )}
           </div>
         )}
         <div class={`flex flex-col ${chatOnly ? 'flex-1' : 'space-y-4'}`}>
