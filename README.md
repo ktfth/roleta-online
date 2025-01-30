@@ -1,61 +1,61 @@
-# Roleta Online
+# Online Roulette
 
-Um aplicativo de chat e vídeo aleatório construído com Deno Fresh.
+A random chat and video application built with Deno Fresh.
 
 https://roleta-online.aldeia-viva.com.br
 
-## Funcionalidades
+## Features
 
-- Chat em tempo real
-- Transmissão de vídeo
-- Modo apenas chat (sem vídeo)
-- Modo transmissão (apenas espectadores)
+- Real-time chat
+- Video streaming
+- Chat-only mode (no video)
+- Broadcast mode (viewers only)
 
-## Requisitos
+## Requirements
 
-Certifique-se de ter o Deno instalado: https://deno.land/manual/getting_started/installation
+Make sure you have Deno installed: https://deno.land/manual/getting_started/installation
 
-## Desenvolvimento
+## Development
 
-Para iniciar o projeto em modo desenvolvimento:
+To start the project in development mode:
 
 ```bash
 deno task start
 ```
 
-Isso irá observar o diretório do projeto e reiniciar conforme necessário.
+This will watch the project directory and restart as needed.
 
-## Testes
+## Tests
 
-O projeto inclui testes automatizados para garantir o funcionamento correto das funcionalidades. Para executar os testes:
+The project includes automated tests to ensure correct functionality. To run the tests:
 
 ```bash
 deno task test
 ```
 
-### Suítes de Teste
+### Test Suites
 
-- `tests/rooms.test.ts`: Testa as funções de gerenciamento de salas
-  - Criação de salas (normais e apenas chat)
-  - Listagem de salas
-  - Contagem de usuários
-  - Remoção de salas
+- `tests/rooms.test.ts`: Tests room management functions
+  - Room creation (normal and chat-only)
+  - Room listing
+  - User counting
+  - Room removal
 
-- `tests/ws.test.ts`: Testa a comunicação WebSocket
-  - Conexão em salas normais
-  - Conexão em salas apenas chat
-  - Transmissão de mensagens
-  - Tratamento de erros
+- `tests/ws.test.ts`: Tests WebSocket communication
+  - Connection in normal rooms
+  - Connection in chat-only rooms
+  - Message transmission
+  - Error handling
 
-## Build e Produção
+## Build and Production
 
-Para construir o projeto para produção:
+To build the project for production:
 
 ```bash
 deno task build
 ```
 
-Para executar em produção:
+To run in production:
 
 ```bash
 deno task preview
